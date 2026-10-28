@@ -4,10 +4,12 @@
   "description": "Your Figma Plugin",
   "main": "code.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "dev": "node scripts/dev.js",
+    "build": "tsc -p tsconfig.json && node scripts/build-ui.js",
+    "build:ui": "node scripts/build-ui.js",
+    "watch:ui": "node scripts/build-ui.js --watch",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "watch": "npm run build -- --watch"
+    "lint:fix": "eslint . --fix"
   },
   "author": "",
   "license": "",
@@ -15,8 +17,15 @@
     "@eslint/js": "^9.39.4",
     "@figma/eslint-plugin-figma-plugins": "*",
     "@figma/plugin-typings": "*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.1"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

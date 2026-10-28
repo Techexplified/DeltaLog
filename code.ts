@@ -1,37 +1,133 @@
-// This plugin will open a window to prompt the user to enter a number, and
-// it will then create that many rectangles on the screen.
+figma.showUI(__html__, { width: 360, height: 600, themeColors: true });
 
-// This file holds the main code for plugins. Code in this file has access to
-// the *figma document* via the figma global object.
-// You can access browser APIs in the <script> tag inside "ui.html" which has a
-// full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
+// Plugin Data keys
+const DELTALOG_INDEX_KEY = "deltalog_index";
 
-// This shows the HTML page in "ui.html".
-figma.showUI(__html__);
+function hasHistory(node: SceneNode): boolean {
+  try {
+    const raw = node.getPluginData(DELTALOG_INDEX_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
 
-// Calls to "parent.postMessage" from within the HTML page will trigger this
-// callback. The callback will be passed the "pluginMessage" property of the
-// posted message.
-figma.ui.onmessage =  (msg: {type: string, count: number}) => {
-  // One way of distinguishing between different types of messages sent from
-  // your HTML page is to use an object with a "type" property like this.
-  if (msg.type === 'create-shapes') {
-    // This plugin creates rectangles on the screen.
-    const numberOfRectangles = msg.count;
+// Find top-level frame if a nested child was selected
+function findTopLevelFrame(node: SceneNode): FrameNode | ComponentNode | SectionNode | null {
+  let current: BaseNode | null = node;
+  while (current && current.parent && current.parent.type !== "PAGE") {
+    current = current.parent;
+  }
+  if (current && (current.type === "FRAME" || current.type === "COMPONENT" || current.type === "SECTION")) {
+    return current as FrameNode | ComponentNode | SectionNode;
+  }
+  return null;
+}
 
-    const nodes: SceneNode[] = [];
-    for (let i = 0; i < numberOfRectangles; i++) {
-      const rect = figma.createRectangle();
-      rect.x = i * 150;
-      rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }];
-      figma.currentPage.appendChild(rect);
-      nodes.push(rect);
-    }
-    figma.currentPage.selection = nodes;
-    figma.viewport.scrollAndZoomIntoView(nodes);
+function updateSelection() {
+  const selection: readonly SceneNode[] = figma.currentPage.selection;
+
+  if (selection.length === 0) {
+    figma.ui.postMessage({
+      type: "selection-update",
+      status: "EMPTY"
+    });
+    return;
   }
 
-  // Make sure to close the plugin when you're done. Otherwise the plugin will
-  // keep running, which shows the cancel button at the bottom of the screen.
-  figma.closePlugin();
+  if (selection.length > 1) {
+    figma.ui.postMessage({
+      type: "selection-update",
+      status: "MULTIPLE",
+      message: "Multiple items selected. Please select one frame."
+    });
+    return;
+  }
+
+  const selectedNode = selection[0];
+
+  if (selectedNode.type === "FRAME" || selectedNode.type === "COMPONENT" || selectedNode.type === "SECTION") {
+    const id: string = selectedNode.id;
+    const name: string = selectedNode.name;
+    const w: number = Math.round(selectedNode.width);
+    const h: number = Math.round(selectedNode.height);
+    const layerCount: number = selectedNode.findAll().length;
+    const hasSavedVersion: boolean = hasHistory(selectedNode);
+
+    figma.ui.postMessage({
+      type: "selection-update",
+      status: "LOADED",
+      id: id,
+      name: name,
+      w: w,
+      h: h,
+      layerCount: layerCount,
+      hasSavedVersion: hasSavedVersion
+    });
+    return;
+  }
+
+  // If a child node inside a frame was selected
+  const parentFrame = findTopLevelFrame(selectedNode);
+  if (parentFrame) {
+    figma.ui.postMessage({
+      type: "selection-update",
+      status: "CHILD_SELECTED",
+      selectedNodeName: selectedNode.name,
+      parentFrameId: parentFrame.id,
+      parentFrameName: parentFrame.name,
+      message: `Selected "${selectedNode.name}" inside "${parentFrame.name}". Pick the top-level frame.`
+    });
+    return;
+  }
+
+  // Not a frame or inside a frame (e.g. standalone shape/sticky/etc.)
+  figma.ui.postMessage({
+    type: "selection-update",
+    status: "NOT_FRAME",
+    message: "Selected element is not a frame. Pick a top-level frame."
+  });
+}
+
+
+figma.on("selectionchange", () => {
+  updateSelection();
+});
+
+//Check selection immediately on plugin open
+updateSelection();
+
+//Handle messages from UI
+figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
+  switch (msg.type) {
+    case "GET_CURRENT_SELECTION":
+      updateSelection();
+      break;
+
+    case "SELECT_FRAME":
+      if (msg.id) {
+        const node = (await figma.getNodeByIdAsync(msg.id)) as SceneNode | null;
+        if (node) {
+          figma.currentPage.selection = [node];
+          figma.viewport.scrollAndZoomIntoView([node]);
+        }
+      }
+      break;
+
+    case "NOTIFY":
+      if (msg.message) {
+        figma.notify(msg.message);
+      }
+      break;
+
+    case "CLOSE":
+      figma.closePlugin();
+      break;
+
+    default:
+      console.warn("Unknown message type received from UI:", msg.type);
+      break;
+  }
 };
