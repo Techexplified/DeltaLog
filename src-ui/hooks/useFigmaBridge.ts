@@ -43,6 +43,7 @@ export function useFigmaBridge() {
           versionsCount: msg.versionsCount,
           versions: msg.versions || [],
           thumbnail: msg.id === prev.id ? prev.thumbnail : null, // preserve or reset
+          trackedFrames: msg.trackedFrames || prev.trackedFrames || [],
           selectedNodeName: msg.selectedNodeName,
           parentFrameId: msg.parentFrameId,
           parentFrameName: msg.parentFrameName,

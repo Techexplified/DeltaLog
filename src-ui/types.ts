@@ -6,6 +6,8 @@ export type SelectionStatus = 'EMPTY' | 'MULTIPLE' | 'NOT_FRAME' | 'CHILD_SELECT
 
 export type VersionBump = 'major' | 'minor' | 'patch';
 
+export type CompareMode = 'version-vs-version' | 'version-vs-current';
+
 export interface VersionIndexItem {
   version: string;
   label: 'major' | 'minor' | 'patch' | 'base';
@@ -15,6 +17,13 @@ export interface VersionIndexItem {
   cloneNodeId?: string;
   layerCount: number;
   sizeKb: number;
+}
+
+export interface TrackedFrameItem {
+  id: string;
+  name: string;
+  versionsCount: number;
+  latestVersion: string;
 }
 
 export interface SelectionData {
@@ -29,6 +38,7 @@ export interface SelectionData {
   versionsCount?: number;
   versions?: VersionIndexItem[];
   thumbnail?: string | null;
+  trackedFrames?: TrackedFrameItem[];
   selectedNodeName?: string;
   parentFrameId?: string;
   parentFrameName?: string;
@@ -50,6 +60,15 @@ export interface SaveSuccessData {
   sizeKb: number;
   compareAfter: boolean;
   versionsCount: number;
+}
+
+export interface CompareFilterOptions {
+  text: boolean;
+  colour: boolean;
+  layout: boolean;
+  effects: boolean;
+  visibility: boolean;
+  layerNames: boolean;
 }
 
 export type PluginMessage = 

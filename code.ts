@@ -214,20 +214,23 @@ function serializeFrame(frame: FrameNode | ComponentNode | SectionNode): Record<
 
 // Milestone Cloner
 async function cloneFrameMilestone(frame: FrameNode | ComponentNode | SectionNode, version: string): Promise<string | null> {
+  let clone: (FrameNode | ComponentNode | SectionNode) | null = null;
   try {
     const pages = figma.root.children;
     let snapshotsPage = pages.find(p => p.name === SNAPSHOTS_PAGE_NAME);
     if (!snapshotsPage) {
       snapshotsPage = figma.createPage();
       snapshotsPage.name = SNAPSHOTS_PAGE_NAME;
-      figma.root.appendChild(snapshotsPage);
     }
 
-    const clone = frame.clone();
+    // Dynamic-page mode requirement: target page must be loaded before accessing children or appendChild
+    await snapshotsPage.loadAsync();
+
+    clone = frame.clone();
     clone.name = `${frame.name} (${version})`;
     snapshotsPage.appendChild(clone);
 
-    // Position clones neatly horizontally
+    // Position clones neatly horizontally on snapshots page
     const existingCount = snapshotsPage.children.length;
     clone.x = (existingCount - 1) * (frame.width + 120);
     clone.y = 0;
@@ -235,6 +238,12 @@ async function cloneFrameMilestone(frame: FrameNode | ComponentNode | SectionNod
     return clone.id;
   } catch (err) {
     console.warn("DeltaLog: Milestone clone failed:", err);
+    // Cleanup orphaned clone from current page if reparenting failed
+    if (clone && !clone.removed) {
+      try {
+        clone.remove();
+      } catch {}
+    }
     return null;
   }
 }
@@ -279,14 +288,55 @@ async function enforceGlobalLimit() {
   }
 }
 
+// List all tracked frames across the document
+async function getTrackedFramesList(): Promise<{ id: string; name: string; versionsCount: number; latestVersion: string }[]> {
+  try {
+    const raw = figma.root.getPluginData(DELTALOG_GLOBAL_KEY);
+    if (!raw) return [];
+    const globalEntries: GlobalVersionEntry[] = JSON.parse(raw);
+    
+    // Group by frameId
+    const map = new Map<string, { versionsCount: number; latestVersion: string }>();
+    for (const entry of globalEntries) {
+      const existing = map.get(entry.frameId);
+      if (!existing) {
+        map.set(entry.frameId, { versionsCount: 1, latestVersion: entry.version });
+      } else {
+        existing.versionsCount += 1;
+        existing.latestVersion = entry.version;
+      }
+    }
+
+    const results = [];
+    for (const [frameId, data] of map.entries()) {
+      try {
+        const node = await figma.getNodeByIdAsync(frameId);
+        if (node && !node.removed) {
+          results.push({
+            id: frameId,
+            name: node.name,
+            versionsCount: data.versionsCount,
+            latestVersion: data.latestVersion
+          });
+        }
+      } catch {}
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 // Selection updater
 async function updateSelection() {
+  const trackedFrames = await getTrackedFramesList();
   const selection: readonly SceneNode[] = figma.currentPage.selection;
 
   if (selection.length === 0) {
     figma.ui.postMessage({
       type: "selection-update",
-      status: "EMPTY"
+      status: "EMPTY",
+      trackedFrames
     });
     return;
   }
@@ -295,7 +345,8 @@ async function updateSelection() {
     figma.ui.postMessage({
       type: "selection-update",
       status: "MULTIPLE",
-      message: "Multiple items selected. Please select one frame."
+      message: "Multiple items selected. Please select one frame.",
+      trackedFrames
     });
     return;
   }
@@ -324,7 +375,8 @@ async function updateSelection() {
       hasSavedVersion: hasSavedVersion,
       latestVersion: latestVersion,
       versionsCount: versions.length,
-      versions: versions
+      versions: versions,
+      trackedFrames
     });
 
     // Export thumbnail asynchronously and push to UI
@@ -347,7 +399,8 @@ async function updateSelection() {
       selectedNodeName: selectedNode.name,
       parentFrameId: parentFrame.id,
       parentFrameName: parentFrame.name,
-      message: `Selected "${selectedNode.name}" inside "${parentFrame.name}". Pick the top-level frame.`
+      message: `Selected "${selectedNode.name}" inside "${parentFrame.name}". Pick the top-level frame.`,
+      trackedFrames
     });
     return;
   }
@@ -355,7 +408,8 @@ async function updateSelection() {
   figma.ui.postMessage({
     type: "selection-update",
     status: "NOT_FRAME",
-    message: "Selected element is not a frame. Pick a top-level frame."
+    message: "Selected element is not a frame. Pick a top-level frame.",
+    trackedFrames
   });
 }
 

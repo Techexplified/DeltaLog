@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { SelectionData, VersionBump, SaveVersionPayload } from '../../types';
 
 interface SaveVersionScreenProps {
@@ -60,10 +61,7 @@ export const SaveVersionScreen: React.FC<SaveVersionScreenProps> = ({
       {/* Top Header */}
       <div className="screen-header">
         <button className="back-btn" onClick={onBack} title="Back">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
+          <ArrowLeft size={16} strokeWidth={2.2} />
         </button>
         <span className="screen-title">Save version</span>
       </div>
@@ -148,11 +146,7 @@ export const SaveVersionScreen: React.FC<SaveVersionScreenProps> = ({
           onClick={() => setKeepFullCopy(!keepFullCopy)}
         >
           <div className={`checkbox-box ${keepFullCopy ? 'checked' : ''}`}>
-            {keepFullCopy && (
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
+            {keepFullCopy && <Check size={11} strokeWidth={3} />}
           </div>
           <div className="checkbox-content">
             <span className="checkbox-title">Keep a full copy (milestone)</span>
@@ -169,11 +163,7 @@ export const SaveVersionScreen: React.FC<SaveVersionScreenProps> = ({
             onClick={() => setCompareAfter(!compareAfter)}
           >
             <div className={`checkbox-box ${compareAfter ? 'checked' : ''}`}>
-              {compareAfter && (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
+              {compareAfter && <Check size={11} strokeWidth={3} />}
             </div>
             <div className="checkbox-content">
               <span className="checkbox-title">Compare with previous after saving</span>

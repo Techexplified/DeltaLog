@@ -7,6 +7,7 @@ import { Footer } from './components/Footer';
 import { StartScreen } from './screens/start/StartScreen';
 import { SaveVersionScreen } from './screens/save-version/SaveVersionScreen';
 import { SuccessView } from './screens/save-version/SuccessView';
+import { CompareScreen } from './screens/compare/CompareScreen';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
@@ -103,9 +104,21 @@ export const App: React.FC = () => {
       )}
 
       {currentView === 'home' && activeTab === 'compare' && (
-        <div className="main-content" style={{ alignItems: 'center', justifyContent: 'center' }}>
-          <div className="empty-subtitle">Compare screen (Step 4)</div>
-        </div>
+        <CompareScreen
+          selection={selection}
+          onSelectFrame={handleSelectParent}
+          onGoHome={() => setActiveTab('home')}
+          onGoHomeAndSave={() => {
+            setActiveTab('home');
+            setCurrentView('save-version');
+          }}
+          onNotify={(message) => sendMessage('NOTIFY', { message })}
+          onCompare={(payload) => {
+            sendMessage('NOTIFY', { 
+              message: `Comparing ${payload.fromVersion} vs ${payload.toVersion}... Diff results coming tomorrow!` 
+            });
+          }}
+        />
       )}
 
       {currentView === 'home' && activeTab === 'archive' && (
@@ -114,7 +127,15 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {currentView === 'home' && <Footer />}
+      {currentView === 'home' && (
+        <Footer
+          text={
+            activeTab === 'compare'
+              ? 'History is stored in this file · shared with your team'
+              : 'No account · history is stored inside this file'
+          }
+        />
+      )}
     </div>
   );
 };

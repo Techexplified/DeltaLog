@@ -1,4 +1,5 @@
 import React from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { SaveSuccessData } from '../../types';
 
 interface SuccessViewProps {
@@ -16,9 +17,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
     <div className="main-content" style={{ justifyContent: 'center' }}>
       <div className="success-container">
         <div className="success-icon-badge">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <CheckCircle2 size={26} strokeWidth={2.2} />
         </div>
 
         <div>
