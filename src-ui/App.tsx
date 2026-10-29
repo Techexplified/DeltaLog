@@ -1,14 +1,41 @@
-import React, { useState } from 'react';
-import { TabId } from './types';
+import React, { useState, useEffect } from 'react';
+import { TabId, ScreenView, SaveVersionPayload } from './types';
 import { useFigmaBridge } from './hooks/useFigmaBridge';
 import { Header } from './components/Header';
 import { Tabs } from './components/Tabs';
 import { Footer } from './components/Footer';
 import { StartScreen } from './screens/start/StartScreen';
+import { SaveVersionScreen } from './screens/save-version/SaveVersionScreen';
+import { SuccessView } from './screens/save-version/SuccessView';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
-  const { selection, sendMessage } = useFigmaBridge();
+  const [currentView, setCurrentView] = useState<ScreenView>('home');
+  
+  const { 
+    selection, 
+    sendMessage, 
+    saveVersion, 
+    isSaving, 
+    saveSuccess, 
+    setSaveSuccess 
+  } = useFigmaBridge();
+
+  // Watch for save completion
+  useEffect(() => {
+    if (saveSuccess) {
+      if (saveSuccess.compareAfter) {
+        // Direct jump to Compare tab per user workflow!
+        setActiveTab('compare');
+        setCurrentView('home');
+        setSaveSuccess(null);
+        sendMessage('NOTIFY', { message: `Version ${saveSuccess.version} saved! Switched to Compare.` });
+      } else {
+        // Show beautiful success view
+        setCurrentView('save-success');
+      }
+    }
+  }, [saveSuccess, sendMessage, setSaveSuccess]);
 
   const handleLocateCanvas = () => {
     if (selection.id) {
@@ -22,36 +49,72 @@ export const App: React.FC = () => {
     sendMessage('SELECT_FRAME', { id: parentId });
   };
 
-  const handleSaveVersion = () => {
-    sendMessage('NOTIFY', { message: 'Version saving ready for Step 2!' });
+  const handleOpenSaveScreen = () => {
+    setCurrentView('save-version');
+  };
+
+  const handleSaveSubmit = (payload: SaveVersionPayload) => {
+    saveVersion(payload);
+  };
+
+  const handleCheckHistory = () => {
+    sendMessage('NOTIFY', { message: `Frame has ${selection.versionsCount || 1} saved version(s). History view coming in Step 7!` });
+  };
+
+  const handleDoneSuccess = () => {
+    setCurrentView('home');
+    setSaveSuccess(null);
   };
 
   return (
     <div className="app-container">
-      <Header onLocateCanvas={handleLocateCanvas} />
-      <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Hide global header/tabs when in dedicated save modal flow */}
+      {currentView === 'home' && (
+        <>
+          <Header onLocateCanvas={handleLocateCanvas} />
+          <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+        </>
+      )}
       
-      {activeTab === 'home' && (
-        <StartScreen
+      {currentView === 'save-version' && (
+        <SaveVersionScreen
           selection={selection}
-          onSelectParent={handleSelectParent}
-          onSaveVersion={handleSaveVersion}
+          isSaving={isSaving}
+          onBack={() => setCurrentView('home')}
+          onSave={handleSaveSubmit}
         />
       )}
 
-      {activeTab === 'compare' && (
+      {currentView === 'save-success' && saveSuccess && (
+        <SuccessView
+          data={saveSuccess}
+          onDone={handleDoneSuccess}
+          onViewHistory={handleCheckHistory}
+        />
+      )}
+
+      {currentView === 'home' && activeTab === 'home' && (
+        <StartScreen
+          selection={selection}
+          onSelectParent={handleSelectParent}
+          onSaveVersion={handleOpenSaveScreen}
+          onCheckHistory={handleCheckHistory}
+        />
+      )}
+
+      {currentView === 'home' && activeTab === 'compare' && (
         <div className="main-content" style={{ alignItems: 'center', justifyContent: 'center' }}>
           <div className="empty-subtitle">Compare screen (Step 4)</div>
         </div>
       )}
 
-      {activeTab === 'archive' && (
+      {currentView === 'home' && activeTab === 'archive' && (
         <div className="main-content" style={{ alignItems: 'center', justifyContent: 'center' }}>
           <div className="empty-subtitle">Archive screen (Step 8)</div>
         </div>
       )}
 
-      <Footer />
+      {currentView === 'home' && <Footer />}
     </div>
   );
 };
