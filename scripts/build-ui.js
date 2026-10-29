@@ -23,6 +23,7 @@ async function bundleUI() {
       format: 'iife',
       platform: 'browser',
       target: ['es2020'],
+      minify: true,
       define: {
         'process.env.NODE_ENV': '"production"'
       },
