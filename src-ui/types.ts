@@ -1,6 +1,6 @@
 export type TabId = 'compare' | 'home' | 'archive';
 
-export type ScreenView = 'home' | 'save-version' | 'save-success';
+export type ScreenView = 'home' | 'save-version' | 'save-success' | 'compare-results' | 'change-detail';
 
 export type SelectionStatus = 'EMPTY' | 'MULTIPLE' | 'NOT_FRAME' | 'CHILD_SELECTED' | 'LOADED';
 
@@ -69,6 +69,63 @@ export interface CompareFilterOptions {
   effects: boolean;
   visibility: boolean;
   layerNames: boolean;
+}
+
+export interface DiffPropertyChange {
+  group: 'text' | 'colour' | 'layout' | 'effects' | 'visibility' | 'layerNames';
+  prop: string;
+  before: any;
+  after: any;
+  description: string;
+}
+
+export interface SnapshotNode {
+  id: string;
+  type: string;
+  name: string;
+  parentId: string | null;
+  text: { characters: string; fontSize: number | string; fontFamily: string } | null;
+  colour: { fills: string[]; strokes: string[] };
+  layout: { x: number; y: number; w: number; h: number };
+  effects: { opacity: number; cornerRadius: number | string; shadows: string[] };
+  visibility: { visible: boolean };
+}
+
+export interface DiffItem {
+  id: string;
+  name: string;
+  type: string;
+  path: string;
+  status: 'changed' | 'added' | 'removed';
+  changes: DiffPropertyChange[];
+  layout: { x: number; y: number; w: number; h: number };
+  beforeNode?: SnapshotNode | null;
+  afterNode?: SnapshotNode | null;
+}
+
+export interface DiffResult {
+  frameId: string;
+  frameName: string;
+  fromVersion: string;
+  toVersion: string;
+  fromThumbnail: string | null;
+  toThumbnail: string | null;
+  summary: {
+    changed: number;
+    added: number;
+    removed: number;
+    total: number;
+  };
+  items: DiffItem[];
+  appliedFilters: CompareFilterOptions;
+}
+
+export interface CompareRequestPayload {
+  frameId: string;
+  mode: CompareMode;
+  fromVersion: string;
+  toVersion: string;
+  filters: CompareFilterOptions;
 }
 
 export type PluginMessage = 

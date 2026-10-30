@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SelectionData, PluginMessage, SaveVersionPayload, SaveSuccessData } from '../types';
+import { SelectionData, PluginMessage, SaveVersionPayload, SaveSuccessData, DiffResult, CompareRequestPayload } from '../types';
 
 export function useFigmaBridge() {
   const [selection, setSelection] = useState<SelectionData>({
@@ -7,6 +7,8 @@ export function useFigmaBridge() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<SaveSuccessData | null>(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
 
   const sendMessage = useCallback((type: string, payload: Record<string, any> = {}) => {
     parent.postMessage(
@@ -23,6 +25,11 @@ export function useFigmaBridge() {
   const saveVersion = useCallback((payload: SaveVersionPayload) => {
     setIsSaving(true);
     sendMessage('SAVE_VERSION', payload);
+  }, [sendMessage]);
+
+  const runCompare = useCallback((payload: CompareRequestPayload) => {
+    setIsComparing(true);
+    sendMessage('RUN_COMPARE', payload);
   }, [sendMessage]);
 
   useEffect(() => {
@@ -75,6 +82,16 @@ export function useFigmaBridge() {
         setIsSaving(false);
         sendMessage('NOTIFY', { message: `Error: ${msg.error}` });
       }
+
+      if (msg.type === 'COMPARE_RESULT_SUCCESS') {
+        setIsComparing(false);
+        setDiffResult(msg.diff);
+      }
+
+      if (msg.type === 'COMPARE_ERROR') {
+        setIsComparing(false);
+        sendMessage('NOTIFY', { message: `Comparison error: ${msg.error}` });
+      }
     };
 
     window.addEventListener('message', handleMessage);
@@ -93,6 +110,10 @@ export function useFigmaBridge() {
     saveVersion, 
     isSaving, 
     saveSuccess, 
-    setSaveSuccess 
+    setSaveSuccess,
+    runCompare,
+    isComparing,
+    diffResult,
+    setDiffResult
   };
 }

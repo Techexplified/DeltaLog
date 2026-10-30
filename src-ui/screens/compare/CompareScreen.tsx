@@ -13,6 +13,7 @@ import { CompareEmptyState } from './components/CompareEmptyState';
 
 interface CompareScreenProps {
   selection: SelectionData;
+  isComparing?: boolean;
   onSelectFrame: (frameId: string) => void;
   onGoHome: () => void;
   onGoHomeAndSave: () => void;
@@ -22,6 +23,7 @@ interface CompareScreenProps {
 
 export const CompareScreen: React.FC<CompareScreenProps> = ({
   selection,
+  isComparing,
   onSelectFrame,
   onGoHome,
   onGoHomeAndSave,
@@ -146,9 +148,9 @@ export const CompareScreen: React.FC<CompareScreenProps> = ({
               type="button"
               className="btn btn-primary"
               onClick={handleCompareClick}
-              disabled={mode === 'version-vs-version' && fromVersion === toVersion}
+              disabled={(mode === 'version-vs-version' && fromVersion === toVersion) || isComparing}
             >
-              Compare
+              {isComparing ? 'Comparing...' : 'Compare'}
             </button>
             <div className="compare-footer-note">
               <span>Layers are matched by ID, then by name + position</span>

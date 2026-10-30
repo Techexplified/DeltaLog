@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TabId, ScreenView, SaveVersionPayload } from './types';
+import { TabId, ScreenView, SaveVersionPayload, DiffItem } from './types';
 import { useFigmaBridge } from './hooks/useFigmaBridge';
 import { Header } from './components/Header';
 import { Tabs } from './components/Tabs';
@@ -8,10 +8,14 @@ import { StartScreen } from './screens/start/StartScreen';
 import { SaveVersionScreen } from './screens/save-version/SaveVersionScreen';
 import { SuccessView } from './screens/save-version/SuccessView';
 import { CompareScreen } from './screens/compare/CompareScreen';
+import { CompareResultsScreen } from './screens/compare-results/CompareResultsScreen';
+import { ChangeDetailScreen } from './screens/change-detail/ChangeDetailScreen';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [currentView, setCurrentView] = useState<ScreenView>('home');
+  const [selectedDetailIndex, setSelectedDetailIndex] = useState<number | null>(null);
+  const [ignoredItemIds, setIgnoredItemIds] = useState<Set<string>>(new Set());
   
   const { 
     selection, 
@@ -19,7 +23,11 @@ export const App: React.FC = () => {
     saveVersion, 
     isSaving, 
     saveSuccess, 
-    setSaveSuccess 
+    setSaveSuccess,
+    runCompare,
+    isComparing,
+    diffResult,
+    setDiffResult
   } = useFigmaBridge();
 
   // Watch for save completion
@@ -37,6 +45,13 @@ export const App: React.FC = () => {
       }
     }
   }, [saveSuccess, sendMessage, setSaveSuccess]);
+
+  // Watch for diff results
+  useEffect(() => {
+    if (diffResult) {
+      setCurrentView('compare-results');
+    }
+  }, [diffResult]);
 
   const handleLocateCanvas = () => {
     if (selection.id) {
@@ -67,13 +82,61 @@ export const App: React.FC = () => {
     setSaveSuccess(null);
   };
 
+  const handleBackFromCompareResults = () => {
+    sendMessage('CLEAR_CANVAS_HIGHLIGHTS');
+    setDiffResult(null);
+    setSelectedDetailIndex(null);
+    setCurrentView('home');
+  };
+
+  const handleSelectDetailItem = (item: DiffItem) => {
+    if (!diffResult) return;
+    const idx = diffResult.items.findIndex(i => i.id === item.id);
+    if (idx !== -1) {
+      setSelectedDetailIndex(idx);
+      setCurrentView('change-detail');
+    }
+  };
+
+  const handleToggleIgnore = (itemId: string) => {
+    setIgnoredItemIds(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+        sendMessage('NOTIFY', { message: 'Change restored to changelog' });
+      } else {
+        next.add(itemId);
+        sendMessage('NOTIFY', { message: 'Change ignored (excluded from changelog)' });
+      }
+      return next;
+    });
+  };
+
+  const handlePrevDetail = () => {
+    if (selectedDetailIndex !== null && selectedDetailIndex > 0) {
+      setSelectedDetailIndex(selectedDetailIndex - 1);
+    }
+  };
+
+  const handleNextDetail = () => {
+    if (diffResult && selectedDetailIndex !== null && selectedDetailIndex < diffResult.items.length - 1) {
+      setSelectedDetailIndex(selectedDetailIndex + 1);
+    }
+  };
+
   return (
     <div className="app-container">
-      {/* Hide global header/tabs when in dedicated save modal flow */}
+      {/* Hide global header/tabs when in dedicated save modal flow or compare results */}
       {currentView === 'home' && (
         <>
           <Header onLocateCanvas={handleLocateCanvas} />
-          <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <Tabs 
+            activeTab={activeTab} 
+            onTabChange={(tab) => {
+              sendMessage('CLEAR_CANVAS_HIGHLIGHTS');
+              setActiveTab(tab);
+            }} 
+          />
         </>
       )}
       
@@ -94,6 +157,40 @@ export const App: React.FC = () => {
         />
       )}
 
+      {currentView === 'compare-results' && diffResult && (
+        <CompareResultsScreen
+          diff={diffResult}
+          ignoredItemIds={ignoredItemIds}
+          onBack={handleBackFromCompareResults}
+          onToggleCanvasHighlights={(enabled) => {
+            sendMessage('TOGGLE_CANVAS_HIGHLIGHTS', {
+              frameId: diffResult.frameId,
+              enabled,
+              items: diffResult.items
+            });
+          }}
+          onSelectDetailItem={handleSelectDetailItem}
+          onViewChangelog={() => {
+            sendMessage('NOTIFY', { message: 'Changelog screen is coming next!' });
+          }}
+        />
+      )}
+
+      {currentView === 'change-detail' && diffResult && selectedDetailIndex !== null && diffResult.items[selectedDetailIndex] && (
+        <ChangeDetailScreen
+          item={diffResult.items[selectedDetailIndex]}
+          currentIndex={selectedDetailIndex}
+          totalItems={diffResult.items.length}
+          isIgnored={ignoredItemIds.has(diffResult.items[selectedDetailIndex].id)}
+          onBack={() => setCurrentView('compare-results')}
+          onPrev={handlePrevDetail}
+          onNext={handleNextDetail}
+          onLocateNode={(nodeId) => sendMessage('LOCATE_NODE', { nodeId })}
+          onToggleIgnore={handleToggleIgnore}
+          onNotify={(message) => sendMessage('NOTIFY', { message })}
+        />
+      )}
+
       {currentView === 'home' && activeTab === 'home' && (
         <StartScreen
           selection={selection}
@@ -106,6 +203,7 @@ export const App: React.FC = () => {
       {currentView === 'home' && activeTab === 'compare' && (
         <CompareScreen
           selection={selection}
+          isComparing={isComparing}
           onSelectFrame={handleSelectParent}
           onGoHome={() => setActiveTab('home')}
           onGoHomeAndSave={() => {
@@ -114,9 +212,7 @@ export const App: React.FC = () => {
           }}
           onNotify={(message) => sendMessage('NOTIFY', { message })}
           onCompare={(payload) => {
-            sendMessage('NOTIFY', { 
-              message: `Comparing ${payload.fromVersion} vs ${payload.toVersion}... Diff results coming tomorrow!` 
-            });
+            runCompare(payload);
           }}
         />
       )}

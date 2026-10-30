@@ -48,6 +48,52 @@ interface GlobalVersionEntry {
   cloneNodeId?: string;
 }
 
+interface CompareFilterOptions {
+  text: boolean;
+  colour: boolean;
+  layout: boolean;
+  effects: boolean;
+  visibility: boolean;
+  layerNames: boolean;
+}
+
+interface DiffPropertyChange {
+  group: 'text' | 'colour' | 'layout' | 'effects' | 'visibility' | 'layerNames';
+  prop: string;
+  before: any;
+  after: any;
+  description: string;
+}
+
+interface DiffItem {
+  id: string;
+  name: string;
+  type: string;
+  path: string;
+  status: 'changed' | 'added' | 'removed';
+  changes: DiffPropertyChange[];
+  layout: { x: number; y: number; w: number; h: number };
+  beforeNode?: SnapshotNode | null;
+  afterNode?: SnapshotNode | null;
+}
+
+interface DiffResult {
+  frameId: string;
+  frameName: string;
+  fromVersion: string;
+  toVersion: string;
+  fromThumbnail: string | null;
+  toThumbnail: string | null;
+  summary: {
+    changed: number;
+    added: number;
+    removed: number;
+    total: number;
+  };
+  items: DiffItem[];
+  appliedFilters: CompareFilterOptions;
+}
+
 // Helpers
 function hasHistory(node: SceneNode): boolean {
   try {
@@ -328,6 +374,330 @@ async function getTrackedFramesList(): Promise<{ id: string; name: string; versi
 }
 
 // Selection updater
+// Layer path builder (e.g. "Login Screen / Form / Button / Primary")
+function getLayerPath(nodes: Record<string, SnapshotNode>, startNode: SnapshotNode): string {
+  const parts: string[] = [startNode.name];
+  let current: SnapshotNode | undefined = startNode;
+  const visited = new Set<string>();
+
+  while (current && current.parentId && !visited.has(current.parentId)) {
+    visited.add(current.parentId);
+    current = nodes[current.parentId];
+    if (current && current.name) {
+      parts.unshift(current.name);
+    }
+  }
+
+  return parts.join(' / ');
+}
+
+// Diff Engine
+function diffSnapshots(
+  snapshotFrom: VersionSnapshot,
+  snapshotTo: VersionSnapshot,
+  filters: CompareFilterOptions
+): { summary: { changed: number; added: number; removed: number; total: number }; items: DiffItem[] } {
+  const items: DiffItem[] = [];
+  const fromNodes = snapshotFrom.nodes || {};
+  const toNodes = snapshotTo.nodes || {};
+
+  const allToIds = new Set(Object.keys(toNodes));
+  const allFromIds = new Set(Object.keys(fromNodes));
+
+  // 1. Process layers in snapshotTo (Changed and Added)
+  for (const id of allToIds) {
+    const toNode = toNodes[id];
+    const fromNode = fromNodes[id];
+
+    if (!fromNode) {
+      // Added layer (in newer snapshot but not older)
+      if (id === snapshotTo.frameId) continue;
+      items.push({
+        id: toNode.id,
+        name: toNode.name,
+        type: toNode.type,
+        path: getLayerPath(toNodes, toNode),
+        status: 'added',
+        changes: [{
+          group: 'layout',
+          prop: 'layer',
+          before: null,
+          after: toNode.name,
+          description: `New ${toNode.type.toLowerCase()} layer`
+        }],
+        layout: toNode.layout,
+        beforeNode: null,
+        afterNode: toNode
+      });
+    } else {
+      // Layer exists in both: compare properties strictly based on ACTIVE FILTERS ONLY
+      const changes: DiffPropertyChange[] = [];
+
+      // A. Text filter
+      if (filters.text && toNode.text && fromNode.text) {
+        if (toNode.text.characters !== fromNode.text.characters) {
+          changes.push({
+            group: 'text',
+            prop: 'characters',
+            before: fromNode.text.characters,
+            after: toNode.text.characters,
+            description: `Text "${fromNode.text.characters}" → "${toNode.text.characters}"`
+          });
+        }
+        if (toNode.text.fontSize !== fromNode.text.fontSize) {
+          changes.push({
+            group: 'text',
+            prop: 'fontSize',
+            before: fromNode.text.fontSize,
+            after: toNode.text.fontSize,
+            description: `Font size ${fromNode.text.fontSize}px → ${toNode.text.fontSize}px`
+          });
+        }
+        if (toNode.text.fontFamily !== fromNode.text.fontFamily) {
+          changes.push({
+            group: 'text',
+            prop: 'fontFamily',
+            before: fromNode.text.fontFamily,
+            after: toNode.text.fontFamily,
+            description: `Font family ${fromNode.text.fontFamily} → ${toNode.text.fontFamily}`
+          });
+        }
+      }
+
+      // B. Colour filter (fills & strokes)
+      if (filters.colour) {
+        const fromFills = (fromNode.colour?.fills || []).join(', ');
+        const toFills = (toNode.colour?.fills || []).join(', ');
+        if (fromFills !== toFills) {
+          changes.push({
+            group: 'colour',
+            prop: 'fills',
+            before: fromFills || 'none',
+            after: toFills || 'none',
+            description: `Fill ${fromFills || 'none'} → ${toFills || 'none'}`
+          });
+        }
+
+        const fromStrokes = (fromNode.colour?.strokes || []).join(', ');
+        const toStrokes = (toNode.colour?.strokes || []).join(', ');
+        if (fromStrokes !== toStrokes) {
+          changes.push({
+            group: 'colour',
+            prop: 'strokes',
+            before: fromStrokes || 'none',
+            after: toStrokes || 'none',
+            description: `Stroke ${fromStrokes || 'none'} → ${toStrokes || 'none'}`
+          });
+        }
+      }
+
+      // C. Layout filter (x, y, w, h with 2px sensitivity threshold)
+      if (filters.layout && toNode.layout && fromNode.layout) {
+        const dx = Math.abs(toNode.layout.x - fromNode.layout.x);
+        const dy = Math.abs(toNode.layout.y - fromNode.layout.y);
+        const dw = Math.abs(toNode.layout.w - fromNode.layout.w);
+        const dh = Math.abs(toNode.layout.h - fromNode.layout.h);
+
+        if (dw > 2 || dh > 2) {
+          changes.push({
+            group: 'layout',
+            prop: 'size',
+            before: `${fromNode.layout.w}×${fromNode.layout.h}`,
+            after: `${toNode.layout.w}×${toNode.layout.w}`,
+            description: `Size ${fromNode.layout.w}×${fromNode.layout.h} → ${toNode.layout.w}×${toNode.layout.h}`
+          });
+        }
+        if (dx > 2 || dy > 2) {
+          changes.push({
+            group: 'layout',
+            prop: 'position',
+            before: `(${fromNode.layout.x}, ${fromNode.layout.y})`,
+            after: `(${toNode.layout.x}, ${toNode.layout.y})`,
+            description: `Position (${fromNode.layout.x}, ${fromNode.layout.y}) → (${toNode.layout.x}, ${toNode.layout.y})`
+          });
+        }
+      }
+
+      // D. Effects filter (opacity, cornerRadius)
+      if (filters.effects && toNode.effects && fromNode.effects) {
+        if (Math.abs((toNode.effects.opacity ?? 1) - (fromNode.effects.opacity ?? 1)) > 0.02) {
+          const fromPct = Math.round((fromNode.effects.opacity ?? 1) * 100);
+          const toPct = Math.round((toNode.effects.opacity ?? 1) * 100);
+          changes.push({
+            group: 'effects',
+            prop: 'opacity',
+            before: `${fromPct}%`,
+            after: `${toPct}%`,
+            description: `Opacity ${fromPct}% → ${toPct}%`
+          });
+        }
+        if (toNode.effects.cornerRadius !== fromNode.effects.cornerRadius) {
+          changes.push({
+            group: 'effects',
+            prop: 'cornerRadius',
+            before: fromNode.effects.cornerRadius,
+            after: toNode.effects.cornerRadius,
+            description: `Corner radius ${fromNode.effects.cornerRadius} → ${toNode.effects.cornerRadius}`
+          });
+        }
+      }
+
+      // E. Visibility filter
+      if (filters.visibility && toNode.visibility && fromNode.visibility) {
+        if (toNode.visibility.visible !== fromNode.visibility.visible) {
+          changes.push({
+            group: 'visibility',
+            prop: 'visible',
+            before: fromNode.visibility.visible,
+            after: toNode.visibility.visible,
+            description: `Visibility ${fromNode.visibility.visible ? 'Visible' : 'Hidden'} → ${toNode.visibility.visible ? 'Visible' : 'Hidden'}`
+          });
+        }
+      }
+
+      // F. Layer names filter
+      if (filters.layerNames) {
+        if (toNode.name !== fromNode.name) {
+          changes.push({
+            group: 'layerNames',
+            prop: 'name',
+            before: fromNode.name,
+            after: toNode.name,
+            description: `Renamed "${fromNode.name}" → "${toNode.name}"`
+          });
+        }
+      }
+
+      // Only mark as changed if at least one selected change type matched!
+      if (changes.length > 0) {
+        items.push({
+          id: toNode.id,
+          name: toNode.name,
+          type: toNode.type,
+          path: getLayerPath(toNodes, toNode),
+          status: 'changed',
+          changes,
+          layout: toNode.layout,
+          beforeNode: fromNode,
+          afterNode: toNode
+        });
+      }
+    }
+  }
+
+  // 2. Process layers in snapshotFrom that are NOT in snapshotTo (Removed)
+  for (const id of allFromIds) {
+    if (!allToIds.has(id)) {
+      if (id === snapshotFrom.frameId) continue;
+      const fromNode = fromNodes[id];
+      items.push({
+        id: fromNode.id,
+        name: fromNode.name,
+        type: fromNode.type,
+        path: getLayerPath(fromNodes, fromNode),
+        status: 'removed',
+        changes: [{
+          group: 'layout',
+          prop: 'layer',
+          before: fromNode.name,
+          after: null,
+          description: `Layer deleted`
+        }],
+        layout: fromNode.layout,
+        beforeNode: fromNode,
+        afterNode: null
+      });
+    }
+  }
+
+  const changed = items.filter(i => i.status === 'changed').length;
+  const added = items.filter(i => i.status === 'added').length;
+  const removed = items.filter(i => i.status === 'removed').length;
+
+  return {
+    summary: {
+      changed,
+      added,
+      removed,
+      total: items.length
+    },
+    items
+  };
+}
+
+// Canvas Highlights Manager
+const HIGHLIGHT_CONTAINER_NAME = "DeltaLog Highlights (locked)";
+
+function clearCanvasHighlights() {
+  try {
+    const existing = figma.currentPage.children.filter(c => c.name === HIGHLIGHT_CONTAINER_NAME);
+    for (const n of existing) {
+      n.remove();
+    }
+  } catch {}
+}
+
+async function renderCanvasHighlights(frame: FrameNode | ComponentNode | SectionNode, items: DiffItem[]) {
+  clearCanvasHighlights();
+  if (!items || items.length === 0) return;
+
+  const frameX = frame.absoluteTransform[0][2];
+  const frameY = frame.absoluteTransform[1][2];
+
+  const overlay = figma.createFrame();
+  overlay.name = HIGHLIGHT_CONTAINER_NAME;
+  overlay.x = frameX;
+  overlay.y = frameY;
+  overlay.resize(frame.width, frame.height);
+  overlay.fills = [];
+  overlay.strokes = [];
+  overlay.clipsContent = false;
+  figma.currentPage.appendChild(overlay);
+
+  for (const item of items) {
+    if (!item.layout) continue;
+
+    const isEllipse = item.type === 'ELLIPSE';
+    const shape = isEllipse ? figma.createEllipse() : figma.createRectangle();
+    shape.name = `[${item.status.toUpperCase()}] ${item.name}`;
+    shape.x = item.layout.x;
+    shape.y = item.layout.y;
+    shape.resize(Math.max(4, item.layout.w), Math.max(4, item.layout.h));
+
+    if (item.status === 'changed') {
+      shape.fills = [{ type: 'SOLID', color: { r: 59 / 255, g: 130 / 255, b: 246 / 255 }, opacity: 0.14 }];
+      shape.strokes = [{ type: 'SOLID', color: { r: 59 / 255, g: 130 / 255, b: 246 / 255 } }];
+      shape.strokeWeight = 1.5;
+      shape.strokeAlign = 'INSIDE';
+      if (!isEllipse && 'cornerRadius' in shape) {
+        shape.cornerRadius = 3;
+      }
+    } else if (item.status === 'added') {
+      shape.fills = [{ type: 'SOLID', color: { r: 34 / 255, g: 197 / 255, b: 94 / 255 }, opacity: 0.14 }];
+      shape.strokes = [{ type: 'SOLID', color: { r: 34 / 255, g: 197 / 255, b: 94 / 255 } }];
+      shape.strokeWeight = 1.5;
+      shape.strokeAlign = 'INSIDE';
+      if (!isEllipse && 'cornerRadius' in shape) {
+        shape.cornerRadius = 3;
+      }
+    } else if (item.status === 'removed') {
+      shape.fills = [{ type: 'SOLID', color: { r: 239 / 255, g: 68 / 255, b: 68 / 255 }, opacity: 0.08 }];
+      shape.strokes = [{ type: 'SOLID', color: { r: 239 / 255, g: 68 / 255, b: 68 / 255 } }];
+      shape.strokeWeight = 1.5;
+      shape.dashPattern = [4, 4];
+      shape.strokeAlign = 'INSIDE';
+      if (!isEllipse && 'cornerRadius' in shape) {
+        shape.cornerRadius = 3;
+      }
+    }
+
+    overlay.appendChild(shape);
+  }
+
+  overlay.locked = true;
+}
+
+// Selection updater
 async function updateSelection() {
   const trackedFrames = await getTrackedFramesList();
   const selection: readonly SceneNode[] = figma.currentPage.selection;
@@ -535,6 +905,134 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
       break;
     }
 
+    case "RUN_COMPARE": {
+      const { frameId, mode, fromVersion, toVersion, filters } = msg;
+      const frame = (await figma.getNodeByIdAsync(frameId)) as (FrameNode | ComponentNode | SectionNode) | null;
+      if (!frame) {
+        figma.ui.postMessage({ type: "COMPARE_ERROR", error: "Frame not found on canvas." });
+        return;
+      }
+
+      try {
+        // 1. Get snapshotFrom
+        const fromRaw = frame.getPluginData(`deltalog_ver_${fromVersion}`);
+        if (!fromRaw) {
+          figma.ui.postMessage({ type: "COMPARE_ERROR", error: `Version ${fromVersion} data not found.` });
+          return;
+        }
+        const snapshotFrom: VersionSnapshot = JSON.parse(fromRaw);
+
+        // 2. Get snapshotTo
+        let snapshotTo: VersionSnapshot;
+        if (mode === 'version-vs-current') {
+          const liveNodes = serializeFrame(frame);
+          snapshotTo = {
+            frameId: frame.id,
+            version: 'Current',
+            label: 'minor',
+            note: 'Live on canvas',
+            author: figma.currentUser?.name || 'You',
+            createdAt: new Date().toISOString(),
+            nodes: liveNodes
+          };
+        } else {
+          const toRaw = frame.getPluginData(`deltalog_ver_${toVersion}`);
+          if (!toRaw) {
+            figma.ui.postMessage({ type: "COMPARE_ERROR", error: `Version ${toVersion} data not found.` });
+            return;
+          }
+          snapshotTo = JSON.parse(toRaw);
+        }
+
+        // 3. Generate thumbnails for side-by-side preview
+        let fromThumbnail: string | null = null;
+        let toThumbnail: string | null = null;
+
+        const currentVersions = getFrameVersions(frame);
+        const fromItem = currentVersions.find(v => v.version === fromVersion);
+        if (fromItem?.cloneNodeId) {
+          try {
+            const cloneNode = await figma.getNodeByIdAsync(fromItem.cloneNodeId) as SceneNode | null;
+            if (cloneNode) fromThumbnail = await getFrameThumbnail(cloneNode);
+          } catch {}
+        }
+
+        if (mode === 'version-vs-current') {
+          toThumbnail = await getFrameThumbnail(frame);
+        } else {
+          const toItem = currentVersions.find(v => v.version === toVersion);
+          if (toItem?.cloneNodeId) {
+            try {
+              const cloneNode = await figma.getNodeByIdAsync(toItem.cloneNodeId) as SceneNode | null;
+              if (cloneNode) toThumbnail = await getFrameThumbnail(cloneNode);
+            } catch {}
+          }
+        }
+
+        // 4. Run Diff Engine (strictly using selected change types in filters!)
+        const diffResult = diffSnapshots(snapshotFrom, snapshotTo, filters);
+
+        // 5. Render canvas highlights by default
+        await renderCanvasHighlights(frame, diffResult.items);
+
+        // 6. Post result to UI
+        figma.ui.postMessage({
+          type: "COMPARE_RESULT_SUCCESS",
+          diff: {
+            frameId: frame.id,
+            frameName: frame.name,
+            fromVersion,
+            toVersion: mode === 'version-vs-current' ? 'Current' : toVersion,
+            fromThumbnail,
+            toThumbnail,
+            summary: diffResult.summary,
+            items: diffResult.items,
+            appliedFilters: filters
+          }
+        });
+      } catch (err: any) {
+        console.error("DeltaLog compare error:", err);
+        figma.ui.postMessage({
+          type: "COMPARE_ERROR",
+          error: err?.message || "Failed to compare versions."
+        });
+      }
+      break;
+    }
+
+    case "TOGGLE_CANVAS_HIGHLIGHTS": {
+      const { frameId, enabled, items } = msg;
+      if (!enabled) {
+        clearCanvasHighlights();
+      } else {
+        const frame = (await figma.getNodeByIdAsync(frameId)) as (FrameNode | ComponentNode | SectionNode) | null;
+        if (frame && items) {
+          await renderCanvasHighlights(frame, items);
+        }
+      }
+      break;
+    }
+
+    case "CLEAR_CANVAS_HIGHLIGHTS": {
+      clearCanvasHighlights();
+      break;
+    }
+
+    case "LOCATE_NODE": {
+      if (msg.nodeId) {
+        try {
+          const node = (await figma.getNodeByIdAsync(msg.nodeId)) as SceneNode | null;
+          if (node) {
+            figma.currentPage.selection = [node];
+            figma.viewport.scrollAndZoomIntoView([node]);
+          } else {
+            figma.notify("Layer not found on current page");
+          }
+        } catch {}
+      }
+      break;
+    }
+
     case "NOTIFY":
       if (msg.message) {
         figma.notify(msg.message);
@@ -542,6 +1040,7 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
       break;
 
     case "CLOSE":
+      clearCanvasHighlights();
       figma.closePlugin();
       break;
 
@@ -550,3 +1049,7 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
       break;
   }
 };
+
+figma.on("close", () => {
+  clearCanvasHighlights();
+});
