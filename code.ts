@@ -1034,6 +1034,197 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
       break;
     }
 
+    case "RESTORE_VERSION": {
+      const { frameId, version } = msg;
+      try {
+        const frame = (await figma.getNodeByIdAsync(frameId)) as (FrameNode | ComponentNode | SectionNode) | null;
+        if (!frame) {
+          figma.notify("Original frame not found on canvas.");
+          return;
+        }
+
+        const versions = getFrameVersions(frame);
+        const item = versions.find(v => v.version === version);
+
+        if (item && item.cloneNodeId) {
+          const snapshotsPage = figma.root.children.find(p => p.name === SNAPSHOTS_PAGE_NAME);
+          if (snapshotsPage) {
+            await snapshotsPage.loadAsync();
+          }
+
+          const clone = (await figma.getNodeByIdAsync(item.cloneNodeId)) as (FrameNode | ComponentNode | SectionNode) | null;
+          if (clone) {
+            const restored = clone.clone();
+            figma.currentPage.appendChild(restored);
+            restored.x = frame.x + frame.width + 100;
+            restored.y = frame.y;
+            restored.name = `[Restored ${version}] ${frame.name}`;
+            figma.currentPage.selection = [restored];
+            figma.viewport.scrollAndZoomIntoView([restored]);
+            figma.notify(`Restored ${version} beside the original frame on canvas`);
+            return;
+          }
+        }
+
+        figma.notify(`Visual snapshot clone not found for ${version}.`);
+      } catch (err: any) {
+        console.error("DeltaLog restore error:", err);
+        figma.notify("Failed to restore version snapshot.");
+      }
+      break;
+    }
+
+    case "DELETE_VERSION": {
+      const { frameId, version } = msg;
+      try {
+        const frame = (await figma.getNodeByIdAsync(frameId)) as (FrameNode | ComponentNode | SectionNode) | null;
+        if (frame) {
+          const versions = getFrameVersions(frame);
+          const targetItem = versions.find(v => v.version === version);
+
+          if (targetItem && targetItem.cloneNodeId) {
+            try {
+              const snapshotsPage = figma.root.children.find(p => p.name === SNAPSHOTS_PAGE_NAME);
+              if (snapshotsPage) await snapshotsPage.loadAsync();
+              const cloneNode = await figma.getNodeByIdAsync(targetItem.cloneNodeId);
+              if (cloneNode) cloneNode.remove();
+            } catch {}
+          }
+
+          frame.setPluginData(`deltalog_ver_${version}`, "");
+          const remaining = versions.filter(v => v.version !== version);
+          frame.setPluginData(DELTALOG_INDEX_KEY, JSON.stringify(remaining));
+        }
+
+        const globalRaw = figma.root.getPluginData(DELTALOG_GLOBAL_KEY);
+        if (globalRaw) {
+          const globalList: GlobalVersionEntry[] = JSON.parse(globalRaw);
+          const updatedGlobal = globalList.filter(entry => !(entry.frameId === frameId && entry.version === version));
+          figma.root.setPluginData(DELTALOG_GLOBAL_KEY, JSON.stringify(updatedGlobal));
+        }
+
+        figma.notify(`Deleted version ${version}`);
+        await updateSelection();
+      } catch (err: any) {
+        console.error("DeltaLog delete version error:", err);
+        figma.notify("Failed to delete version.");
+      }
+      break;
+    }
+
+    case "CLEAR_ALL_HISTORY": {
+      try {
+        const globalRaw = figma.root.getPluginData(DELTALOG_GLOBAL_KEY);
+        if (globalRaw) {
+          const globalList: GlobalVersionEntry[] = JSON.parse(globalRaw);
+          for (const entry of globalList) {
+            try {
+              const frameNode = await figma.getNodeByIdAsync(entry.frameId);
+              if (frameNode) {
+                frameNode.setPluginData(`deltalog_ver_${entry.version}`, "");
+                frameNode.setPluginData(DELTALOG_INDEX_KEY, "");
+              }
+            } catch {}
+          }
+        }
+
+        figma.root.setPluginData(DELTALOG_GLOBAL_KEY, "");
+
+        const snapshotsPage = figma.root.children.find(p => p.name === SNAPSHOTS_PAGE_NAME);
+        if (snapshotsPage) {
+          try {
+            snapshotsPage.remove();
+          } catch {}
+        }
+
+        figma.notify("Cleared all DeltaLog history in this file.");
+        await updateSelection();
+      } catch (err: any) {
+        console.error("DeltaLog clear history error:", err);
+        figma.notify("Failed to clear history.");
+      }
+      break;
+    }
+
+    case "REQUEST_EXPORT_DATA": {
+      const { frameId } = msg;
+      try {
+        figma.notify("Preparing export package...");
+        
+        const snapshotsPage = figma.root.children.find(p => p.name === SNAPSHOTS_PAGE_NAME);
+        if (snapshotsPage) {
+          await snapshotsPage.loadAsync();
+        }
+
+        const previews: Record<string, string> = {};
+        const versionsData: any[] = [];
+        let exportFrameName = "Document";
+
+        if (frameId) {
+          const frame = (await figma.getNodeByIdAsync(frameId)) as (FrameNode | ComponentNode | SectionNode) | null;
+          if (frame) {
+            exportFrameName = frame.name;
+            const versions = getFrameVersions(frame);
+            for (const v of versions) {
+              const rawData = frame.getPluginData(`deltalog_ver_${v.version}`);
+              versionsData.push({
+                metadata: v,
+                snapshot: rawData ? JSON.parse(rawData) : null
+              });
+
+              if (v.cloneNodeId) {
+                try {
+                  const clone = (await figma.getNodeByIdAsync(v.cloneNodeId)) as SceneNode | null;
+                  if (clone && 'exportAsync' in clone) {
+                    const bytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                    previews[v.version] = uint8ArrayToBase64(bytes);
+                  }
+                } catch {}
+              }
+            }
+          }
+        } else {
+          const globalRaw = figma.root.getPluginData(DELTALOG_GLOBAL_KEY);
+          const globalList: GlobalVersionEntry[] = globalRaw ? JSON.parse(globalRaw) : [];
+          
+          for (const entry of globalList) {
+            try {
+              const frame = await figma.getNodeByIdAsync(entry.frameId);
+              if (frame) {
+                const rawData = frame.getPluginData(`deltalog_ver_${entry.version}`);
+                versionsData.push({
+                  frameId: entry.frameId,
+                  frameName: frame.name,
+                  version: entry.version,
+                  snapshot: rawData ? JSON.parse(rawData) : null
+                });
+
+                if (entry.cloneNodeId) {
+                  const clone = (await figma.getNodeByIdAsync(entry.cloneNodeId)) as SceneNode | null;
+                  if (clone && 'exportAsync' in clone) {
+                    const bytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                    previews[`${frame.name}-${entry.version}`] = uint8ArrayToBase64(bytes);
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+
+        figma.ui.postMessage({
+          type: "EXPORT_ZIP_DATA_READY",
+          isGlobal: !frameId,
+          frameName: exportFrameName,
+          versionsData,
+          previews
+        });
+      } catch (err: any) {
+        console.error("DeltaLog export zip error:", err);
+        figma.notify("Failed to export history package.");
+      }
+      break;
+    }
+
     case "NOTIFY":
       if (msg.message) {
         figma.notify(msg.message);

@@ -22,10 +22,10 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, onTabChange }) => {
         Home
       </button>
       <button 
-        className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`}
-        onClick={() => onTabChange('archive')}
+        className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+        onClick={() => onTabChange('history')}
       >
-        Archive
+        History
       </button>
     </nav>
   );

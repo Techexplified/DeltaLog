@@ -1,6 +1,6 @@
-export type TabId = 'compare' | 'home' | 'archive';
+export type TabId = 'compare' | 'home' | 'history';
 
-export type ScreenView = 'home' | 'save-version' | 'save-success' | 'compare-results' | 'change-detail' | 'changelog';
+export type ScreenView = 'home' | 'save-version' | 'save-success' | 'compare-results' | 'change-detail' | 'changelog' | 'settings';
 
 export type SelectionStatus = 'EMPTY' | 'MULTIPLE' | 'NOT_FRAME' | 'CHILD_SELECTED' | 'LOADED';
 

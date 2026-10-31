@@ -11,6 +11,8 @@ import { CompareScreen } from './screens/compare/CompareScreen';
 import { CompareResultsScreen } from './screens/compare-results/CompareResultsScreen';
 import { ChangeDetailScreen } from './screens/change-detail/ChangeDetailScreen';
 import { ChangelogScreen } from './screens/changelog/ChangelogScreen';
+import { HistoryScreen } from './screens/history/HistoryScreen';
+import { SettingsScreen } from './screens/settings/SettingsScreen';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
@@ -75,7 +77,8 @@ export const App: React.FC = () => {
   };
 
   const handleCheckHistory = () => {
-    sendMessage('NOTIFY', { message: `Frame has ${selection.versionsCount || 1} saved version(s). History view coming in Step 7!` });
+    setActiveTab('history');
+    setCurrentView('home');
   };
 
   const handleDoneSuccess = () => {
@@ -130,7 +133,10 @@ export const App: React.FC = () => {
       {/* Hide global header/tabs when in dedicated save modal flow or compare results */}
       {currentView === 'home' && (
         <>
-          <Header onLocateCanvas={handleLocateCanvas} />
+          <Header 
+            onLocateCanvas={handleLocateCanvas} 
+            onOpenSettings={() => setCurrentView('settings')}
+          />
           <Tabs 
             activeTab={activeTab} 
             onTabChange={(tab) => {
@@ -228,10 +234,56 @@ export const App: React.FC = () => {
         />
       )}
 
-      {currentView === 'home' && activeTab === 'archive' && (
-        <div className="main-content" style={{ alignItems: 'center', justifyContent: 'center' }}>
-          <div className="empty-subtitle">Archive screen (Step 8)</div>
-        </div>
+      {currentView === 'home' && activeTab === 'history' && (
+        <HistoryScreen
+          selection={selection}
+          onSelectFrame={handleSelectParent}
+          onGoHome={() => setActiveTab('home')}
+          onGoHomeAndSave={() => {
+            setActiveTab('home');
+            setCurrentView('save-version');
+          }}
+          onCompareVersions={(fromVersion, toVersion, frameId) => {
+            setActiveTab('compare');
+            runCompare({
+              frameId,
+              mode: 'version-vs-version',
+              fromVersion,
+              toVersion,
+              filters: {
+                text: true,
+                colour: true,
+                layout: true,
+                effects: true,
+                visibility: true,
+                layerNames: false
+              }
+            });
+          }}
+          onRestoreVersion={(frameId, version) => {
+            sendMessage('RESTORE_VERSION', { frameId, version });
+          }}
+          onDeleteVersion={(frameId, version) => {
+            sendMessage('DELETE_VERSION', { frameId, version });
+          }}
+          onExportFrameZip={(frameId) => {
+            sendMessage('REQUEST_EXPORT_DATA', { frameId });
+          }}
+        />
+      )}
+
+      {currentView === 'settings' && (
+        <SettingsScreen
+          selection={selection}
+          onBack={() => setCurrentView('home')}
+          onNotify={(message) => sendMessage('NOTIFY', { message })}
+          onClearAllHistory={() => {
+            sendMessage('CLEAR_ALL_HISTORY');
+          }}
+          onRequestExportZip={() => {
+            sendMessage('REQUEST_EXPORT_DATA', {});
+          }}
+        />
       )}
 
       {currentView === 'home' && (
@@ -239,6 +291,8 @@ export const App: React.FC = () => {
           text={
             activeTab === 'compare'
               ? 'History is stored in this file · shared with your team'
+              : activeTab === 'history'
+              ? 'Restore places the old version beside the current one'
               : 'No account · history is stored inside this file'
           }
         />

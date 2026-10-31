@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SelectionData, PluginMessage, SaveVersionPayload, SaveSuccessData, DiffResult, CompareRequestPayload } from '../types';
+import { generateAndDownloadZip } from '../utils/zipExporter';
 
 export function useFigmaBridge() {
   const [selection, setSelection] = useState<SelectionData>({
@@ -92,6 +93,20 @@ export function useFigmaBridge() {
       if (msg.type === 'COMPARE_ERROR') {
         setIsComparing(false);
         sendMessage('NOTIFY', { message: `Comparison error: ${msg.error}` });
+      }
+
+      if (msg.type === 'EXPORT_ZIP_DATA_READY') {
+        generateAndDownloadZip({
+          isGlobal: msg.isGlobal,
+          frameName: msg.frameName,
+          versionsData: msg.versionsData,
+          previews: msg.previews
+        }).then(() => {
+          sendMessage('NOTIFY', { message: 'History .zip archive downloaded!' });
+        }).catch((err) => {
+          console.error(err);
+          sendMessage('NOTIFY', { message: 'Failed to generate zip file.' });
+        });
       }
     };
 
