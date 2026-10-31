@@ -10,6 +10,7 @@ import { SuccessView } from './screens/save-version/SuccessView';
 import { CompareScreen } from './screens/compare/CompareScreen';
 import { CompareResultsScreen } from './screens/compare-results/CompareResultsScreen';
 import { ChangeDetailScreen } from './screens/change-detail/ChangeDetailScreen';
+import { ChangelogScreen } from './screens/changelog/ChangelogScreen';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('home');
@@ -171,8 +172,18 @@ export const App: React.FC = () => {
           }}
           onSelectDetailItem={handleSelectDetailItem}
           onViewChangelog={() => {
-            sendMessage('NOTIFY', { message: 'Changelog screen is coming next!' });
+            setCurrentView('changelog');
           }}
+        />
+      )}
+
+      {currentView === 'changelog' && diffResult && (
+        <ChangelogScreen
+          diff={diffResult}
+          ignoredItemIds={ignoredItemIds}
+          userName={selection.userName}
+          onBack={() => setCurrentView('compare-results')}
+          onNotify={(message) => sendMessage('NOTIFY', { message })}
         />
       )}
 

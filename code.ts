@@ -746,6 +746,7 @@ async function updateSelection() {
       latestVersion: latestVersion,
       versionsCount: versions.length,
       versions: versions,
+      userName: figma.currentUser?.name || "Designer",
       trackedFrames
     });
 

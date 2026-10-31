@@ -49,6 +49,7 @@ export function useFigmaBridge() {
           latestVersion: msg.latestVersion,
           versionsCount: msg.versionsCount,
           versions: msg.versions || [],
+          userName: msg.userName || prev.userName || "Designer",
           thumbnail: msg.id === prev.id ? prev.thumbnail : null, // preserve or reset
           trackedFrames: msg.trackedFrames || prev.trackedFrames || [],
           selectedNodeName: msg.selectedNodeName,

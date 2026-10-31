@@ -1,6 +1,6 @@
 export type TabId = 'compare' | 'home' | 'archive';
 
-export type ScreenView = 'home' | 'save-version' | 'save-success' | 'compare-results' | 'change-detail';
+export type ScreenView = 'home' | 'save-version' | 'save-success' | 'compare-results' | 'change-detail' | 'changelog';
 
 export type SelectionStatus = 'EMPTY' | 'MULTIPLE' | 'NOT_FRAME' | 'CHILD_SELECTED' | 'LOADED';
 
@@ -40,6 +40,7 @@ export interface SelectionData {
   thumbnail?: string | null;
   trackedFrames?: TrackedFrameItem[];
   selectedNodeName?: string;
+  userName?: string;
   parentFrameId?: string;
   parentFrameName?: string;
   message?: string;
