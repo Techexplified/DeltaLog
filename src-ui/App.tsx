@@ -19,6 +19,29 @@ export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ScreenView>('home');
   const [selectedDetailIndex, setSelectedDetailIndex] = useState<number | null>(null);
   const [ignoredItemIds, setIgnoredItemIds] = useState<Set<string>>(new Set());
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      return (localStorage.getItem('deltalog_theme') as 'dark' | 'light') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const handleToggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      try {
+        localStorage.setItem('deltalog_theme', next);
+      } catch {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    document.body.className = theme === 'light' ? 'theme-light' : 'theme-dark';
+  }, [theme]);
   
   const { 
     selection, 
@@ -129,13 +152,15 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} data-theme={theme}>
       {/* Hide global header/tabs when in dedicated save modal flow or compare results */}
       {currentView === 'home' && (
         <>
           <Header 
             onLocateCanvas={handleLocateCanvas} 
             onOpenSettings={() => setCurrentView('settings')}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
           />
           <Tabs 
             activeTab={activeTab} 

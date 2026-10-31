@@ -21,7 +21,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
 
         <div>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
             Version {data.version} Saved!
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: '260px' }}>

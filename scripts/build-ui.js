@@ -10,7 +10,8 @@ const OUTPUT_FILE = path.join(ROOT_DIR, 'ui.html');
 const CSS_FILES = [
   'theme.css',
   'layout.css',
-  'components.css'
+  'components.css',
+  'light-theme.css'
 ];
 
 async function bundleUI() {

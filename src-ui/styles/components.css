@@ -66,7 +66,7 @@
   width: 7px;
   height: 7px;
   border: 1.5px solid var(--blue-primary);
-  background: #0d0f14;
+  background: var(--bg-app);
 }
 .handle-tl { top: 0; left: 0; }
 .handle-tr { top: 0; right: 0; }
@@ -125,27 +125,27 @@
 }
 
 .btn-secondary {
-  background-color: #171b26;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background-color: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
 }
 
 .btn-secondary:hover {
-  background-color: var(--bg-surface-hover);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.16);
+  background-color: var(--btn-secondary-hover-bg);
+  color: var(--btn-secondary-hover-text);
+  border-color: var(--btn-secondary-hover-border);
 }
 
 .btn-muted {
-  background-color: #171b26;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background-color: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
 }
 
 .btn-muted:hover {
-  background-color: var(--bg-surface-hover);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.16);
+  background-color: var(--btn-secondary-hover-bg);
+  color: var(--btn-secondary-hover-text);
+  border-color: var(--btn-secondary-hover-border);
 }
 
 .btn-link {
@@ -187,7 +187,7 @@
 .notice-text {
   font-size: 11.5px;
   line-height: 1.4;
-  color: #bfdbfe;
+  color: var(--text-notice);
 }
 
 /* How It Works Section */
@@ -277,7 +277,7 @@
 .frame-thumbnail-preview {
   width: 52px;
   height: 52px;
-  background: #11141c;
+  background: var(--bg-surface-hover);
   border: 1px solid var(--border-card);
   border-radius: 8px;
   display: flex;
@@ -296,7 +296,7 @@
 .frame-card-title {
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -410,7 +410,7 @@
 .version-pill {
   flex: 1;
   padding: 9px 0;
-  background: #141721;
+  background: var(--btn-secondary-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   color: var(--text-secondary);
@@ -452,7 +452,7 @@
 .form-textarea {
   width: 100%;
   height: 64px;
-  background: #12151e;
+  background: var(--bg-input); color: var(--text-primary); border-color: var(--border-input);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 10px;
@@ -486,7 +486,7 @@
   height: 16px;
   border-radius: 4px;
   border: 1.5px solid rgba(255, 255, 255, 0.2);
-  background: #12151e;
+  background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -521,7 +521,7 @@
 
 /* Storage Bar */
 .storage-card {
-  background: #11141d;
+  background: var(--bg-card-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 10px 12px;
@@ -642,11 +642,11 @@
 
 .custom-select {
   width: 100%;
-  background: #141824;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
   border-radius: 10px;
   padding: 9px 32px 9px 12px;
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: inherit;
   font-size: 12px;
   appearance: none;
@@ -680,10 +680,10 @@
 .compare-mode-toggle {
   display: flex;
   gap: 5px;
-  background: #0f121b;
+  background: var(--bg-card-subtle);
   padding: 4px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
 }
 
 .mode-btn {
@@ -860,8 +860,8 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  background: #121520;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: 9px;
   padding: 8px 10px;
   cursor: pointer;
@@ -870,7 +870,7 @@
 }
 
 .filter-checkbox-item:hover {
-  background: #161a28;
+  background: var(--bg-surface-hover);
   border-color: rgba(255, 255, 255, 0.12);
 }
 
@@ -878,8 +878,8 @@
   width: 16px;
   height: 16px;
   border-radius: 5px;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
-  background: #12151e;
+  border: 1.5px solid var(--border-card);
+  background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -974,8 +974,8 @@
 .side-by-side-card {
   display: flex;
   align-items: center;
-  background: #11141e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 10px 12px;
   gap: 10px;
@@ -1023,8 +1023,8 @@
 .side-preview-box {
   width: 100%;
   height: 52px;
-  background: #090b10;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -1109,9 +1109,9 @@
   border-radius: 14px;
   font-size: 11px;
   font-weight: 500;
-  background: #141724;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary);
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
   cursor: pointer;
   white-space: nowrap;
   font-family: inherit;
@@ -1119,8 +1119,8 @@
 }
 
 .filter-chip-btn:hover {
-  background: #1a1e2f;
-  color: #ffffff;
+  background: var(--btn-secondary-hover-bg);
+  color: var(--btn-secondary-hover-text);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -1147,7 +1147,7 @@
 .diff-empty-list {
   padding: 24px 16px;
   text-align: center;
-  background: #11141e;
+  background: var(--bg-card-subtle);
   border: 1px dashed rgba(255, 255, 255, 0.1);
   border-radius: 8px;
 }
@@ -1158,8 +1158,8 @@
 }
 
 .diff-item-row {
-  background: #131622;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 8px 10px;
   cursor: pointer;
@@ -1169,7 +1169,7 @@
 }
 
 .diff-item-row:hover {
-  background: #181d2d;
+  background: var(--bg-surface-hover);
   border-color: rgba(59, 130, 246, 0.3);
   transform: translateY(-1px);
 }
@@ -1202,7 +1202,7 @@
 .diff-item-name {
   font-size: 12px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1247,8 +1247,8 @@
 
 .compare-results-footer-bar {
   padding: 8px 16px 12px 16px;
-  background: #0e1017;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
@@ -1306,8 +1306,8 @@
 .visual-preview-frame {
   width: 100%;
   height: 80px;
-  background: #11141e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -1364,8 +1364,8 @@
 
 /* Property Diff Table */
 .property-diff-table-container {
-  background: #11141e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
@@ -1376,8 +1376,8 @@
   display: grid;
   grid-template-columns: 100px 1fr 1fr;
   padding: 6px 10px;
-  background: #161a28;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-surface-hover);
+  border-bottom: 1px solid var(--border-subtle);
   font-size: 9.5px;
   font-weight: 600;
   color: var(--text-muted);
@@ -1427,7 +1427,7 @@
 }
 
 .val-after {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .diff-val-color {
@@ -1450,8 +1450,8 @@
 
 /* Matched By Card */
 .matched-by-card {
-  background: #11141e;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 6px 10px;
 }
@@ -1485,10 +1485,10 @@
   justify-content: center;
   gap: 6px;
   padding: 7px 12px;
-  background: #141724;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
   border-radius: 8px;
-  color: #cbd5e1;
+  color: var(--btn-secondary-text);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -1497,9 +1497,9 @@
 }
 
 .btn-action-pill:hover {
-  background: #1c2236;
+  background: var(--btn-secondary-hover-bg);
   border-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  color: var(--btn-secondary-hover-text);
 }
 
 .btn-action-pill.active {
@@ -1511,8 +1511,8 @@
 /* Pagination Footer */
 .change-detail-pagination-bar {
   padding: 8px 16px 12px 16px;
-  background: #0e1017;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1554,7 +1554,7 @@
 .pagination-tracker {
   font-size: 11.5px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 .pagination-footnote {
@@ -1576,8 +1576,8 @@
 
 /* Comparison Banner Card */
 .comparison-banner-card {
-  background: #141724;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 12px 14px;
   display: flex;
@@ -1610,9 +1610,9 @@
 }
 
 .version-pill.from-pill {
-  background: #1e2433;
+  background: var(--btn-secondary-bg);
   color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--btn-secondary-border);
 }
 
 .version-arrow {
@@ -1634,8 +1634,8 @@
 
 /* Changelog Editor Card */
 .changelog-editor-card {
-  background: #0d111a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   overflow: hidden;
   display: flex;
@@ -1660,7 +1660,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 11.5px;
   line-height: 1.6;
-  color: #cbd5e1;
+  color: var(--text-primary);
   word-break: break-word;
   white-space: pre-wrap;
 }
@@ -1703,10 +1703,10 @@
   justify-content: center;
   gap: 7px;
   height: 38px;
-  background: #161a29;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
   border-radius: 8px;
-  color: #f1f5f9;
+  color: var(--btn-secondary-text);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -1715,9 +1715,9 @@
 }
 
 .btn-changelog-action:hover {
-  background: #1f253d;
+  background: var(--btn-secondary-hover-bg);
   border-color: rgba(96, 165, 250, 0.4);
-  color: #ffffff;
+  color: var(--btn-secondary-hover-text);
 }
 
 .btn-changelog-action:active {
@@ -1742,7 +1742,7 @@
   gap: 8px;
   width: 100%;
   height: 38px;
-  background: #141926;
+  background: var(--btn-secondary-bg);
   border: 1px solid rgba(59, 130, 246, 0.35);
   border-radius: 8px;
   color: #60a5fa;
@@ -1774,8 +1774,8 @@
 }
 
 .history-version-card {
-  background: #111522;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 12px 14px;
   display: flex;
@@ -1786,7 +1786,7 @@
 
 .history-version-card.latest {
   border-color: rgba(59, 130, 246, 0.45);
-  background: #13192b;
+  background: var(--bg-card-highlight);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
@@ -1807,8 +1807,8 @@
 .mini-schematic-icon {
   width: 32px;
   height: 44px;
-  background: #0c0f18;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 5px 4px;
   display: flex;
@@ -1847,7 +1847,7 @@
 .history-version-title {
   font-size: 13px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 .history-label-dot {
@@ -1903,10 +1903,10 @@
 .history-btn-action {
   flex: 1;
   height: 28px;
-  background: #161c2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
   border-radius: 6px;
-  color: #cbd5e1;
+  color: var(--btn-secondary-text);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -1915,9 +1915,9 @@
 }
 
 .history-btn-action:hover:not(:disabled) {
-  background: #1f2740;
+  background: var(--btn-secondary-hover-bg);
   border-color: rgba(96, 165, 250, 0.4);
-  color: #ffffff;
+  color: var(--btn-secondary-hover-text);
 }
 
 .history-btn-action.disabled {
@@ -1945,8 +1945,8 @@
    ========================================================================== */
 
 .settings-card {
-  background: #141724;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 12px 14px;
   display: flex;
@@ -1963,7 +1963,7 @@
 .settings-card-title {
   font-size: 12px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
 }
@@ -2011,7 +2011,7 @@
 .settings-checkbox-title {
   font-size: 12px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 .settings-checkbox-desc {
@@ -2026,10 +2026,10 @@
   justify-content: center;
   gap: 6px;
   height: 32px;
-  background: #161c2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
   border-radius: 6px;
-  color: #cbd5e1;
+  color: var(--btn-secondary-text);
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
@@ -2038,9 +2038,9 @@
 }
 
 .settings-action-btn:hover {
-  background: #1f2740;
+  background: var(--btn-secondary-hover-bg);
   border-color: rgba(96, 165, 250, 0.4);
-  color: #ffffff;
+  color: var(--btn-secondary-hover-text);
 }
 
 .settings-action-btn.primary {

@@ -82,7 +82,7 @@ export const SaveVersionScreen: React.FC<SaveVersionScreenProps> = ({
             )}
           </div>
           <div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
               Preview: {selection.name || 'Frame'}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -104,7 +104,7 @@ export const SaveVersionScreen: React.FC<SaveVersionScreenProps> = ({
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>v1.0.0 (Base version)</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>v1.0.0 (Base version)</span>
               <span style={{ fontSize: '11px', color: 'var(--blue-light)' }}>First snapshot</span>
             </div>
           ) : (
