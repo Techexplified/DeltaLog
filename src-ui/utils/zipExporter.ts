@@ -4,7 +4,8 @@ interface ExportZipPayload {
   isGlobal: boolean;
   frameName: string;
   versionsData: any[];
-  previews: Record<string, string>;
+  pngPreviews: Record<string, string>;
+  svgVectors?: Record<string, string>;
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -30,22 +31,37 @@ export async function generateAndDownloadZip(payload: ExportZipPayload): Promise
   };
   zip.file('history.json', JSON.stringify(metadata, null, 2));
 
-  // 2. Add Previews folder with PNGs
-  const previewsFolder = zip.folder('previews');
-  if (previewsFolder && payload.previews) {
-    for (const [key, base64Data] of Object.entries(payload.previews)) {
+  // 2. Add png-preview folder with PNGs
+  const pngFolder = zip.folder('png-preview');
+  if (pngFolder && payload.pngPreviews) {
+    for (const [key, base64Data] of Object.entries(payload.pngPreviews)) {
       if (base64Data) {
         try {
           const rawBytes = base64ToUint8Array(base64Data);
-          previewsFolder.file(`${key}.png`, rawBytes);
+          pngFolder.file(`${key}.png`, rawBytes);
         } catch (err) {
-          console.warn('Failed to add preview PNG:', key, err);
+          console.warn('Failed to add PNG preview:', key, err);
         }
       }
     }
   }
 
-  // 3. Generate Blob and trigger download
+  // 3. Add svg-vectors folder with SVGs
+  const svgFolder = zip.folder('svg-vectors');
+  if (svgFolder && payload.svgVectors) {
+    for (const [key, base64Data] of Object.entries(payload.svgVectors)) {
+      if (base64Data) {
+        try {
+          const rawBytes = base64ToUint8Array(base64Data);
+          svgFolder.file(`${key}.svg`, rawBytes);
+        } catch (err) {
+          console.warn('Failed to add SVG vector:', key, err);
+        }
+      }
+    }
+  }
+
+  // 4. Generate Blob and trigger download
   const content = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(content);
   const a = document.createElement('a');

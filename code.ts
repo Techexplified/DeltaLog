@@ -1156,7 +1156,8 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
           await snapshotsPage.loadAsync();
         }
 
-        const previews: Record<string, string> = {};
+        const pngPreviews: Record<string, string> = {};
+        const svgVectors: Record<string, string> = {};
         const versionsData: any[] = [];
         let exportFrameName = "Document";
 
@@ -1176,8 +1177,11 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
                 try {
                   const clone = (await figma.getNodeByIdAsync(v.cloneNodeId)) as SceneNode | null;
                   if (clone && 'exportAsync' in clone) {
-                    const bytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
-                    previews[v.version] = uint8ArrayToBase64(bytes);
+                    const pngBytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                    pngPreviews[v.version] = uint8ArrayToBase64(pngBytes);
+
+                    const svgBytes = await clone.exportAsync({ format: 'SVG', svgIdAttribute: true });
+                    svgVectors[v.version] = uint8ArrayToBase64(svgBytes);
                   }
                 } catch {}
               }
@@ -1202,8 +1206,11 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
                 if (entry.cloneNodeId) {
                   const clone = (await figma.getNodeByIdAsync(entry.cloneNodeId)) as SceneNode | null;
                   if (clone && 'exportAsync' in clone) {
-                    const bytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
-                    previews[`${frame.name}-${entry.version}`] = uint8ArrayToBase64(bytes);
+                    const pngBytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                    pngPreviews[`${frame.name}-${entry.version}`] = uint8ArrayToBase64(pngBytes);
+
+                    const svgBytes = await clone.exportAsync({ format: 'SVG', svgIdAttribute: true });
+                    svgVectors[`${frame.name}-${entry.version}`] = uint8ArrayToBase64(svgBytes);
                   }
                 }
               }
@@ -1216,7 +1223,8 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
           isGlobal: !frameId,
           frameName: exportFrameName,
           versionsData,
-          previews
+          pngPreviews,
+          svgVectors
         });
       } catch (err: any) {
         console.error("DeltaLog export zip error:", err);

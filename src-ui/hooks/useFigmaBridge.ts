@@ -100,7 +100,8 @@ export function useFigmaBridge() {
           isGlobal: msg.isGlobal,
           frameName: msg.frameName,
           versionsData: msg.versionsData,
-          previews: msg.previews
+          pngPreviews: msg.pngPreviews || msg.previews || {},
+          svgVectors: msg.svgVectors || {}
         }).then(() => {
           sendMessage('NOTIFY', { message: 'History .zip archive downloaded!' });
         }).catch((err) => {
