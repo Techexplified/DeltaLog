@@ -94,6 +94,16 @@ interface DiffResult {
   appliedFilters: CompareFilterOptions;
 }
 
+interface ImportedFrameItem {
+  frameName: string;
+  versions: VersionIndexItem[];
+  snapshots: Record<string, any>;
+  latestVersion: string;
+  latestSvg: string;
+  milestoneSvgs: Record<string, string>;
+  latestPngBase64?: string | null;
+}
+
 // Helpers
 function hasHistory(node: SceneNode): boolean {
   try {
@@ -1186,34 +1196,83 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
                 } catch {}
               }
             }
+
+            // Fallback: Ensure the latest version always has an SVG vector exported from current frame
+            if (versions.length > 0) {
+              const latestVer = versions[versions.length - 1].version;
+              if (!svgVectors[latestVer] && 'exportAsync' in frame) {
+                try {
+                  const svgBytes = await frame.exportAsync({ format: 'SVG', svgIdAttribute: true });
+                  svgVectors[latestVer] = uint8ArrayToBase64(svgBytes);
+                  if (!pngPreviews[latestVer]) {
+                    const pngBytes = await frame.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                    pngPreviews[latestVer] = uint8ArrayToBase64(pngBytes);
+                  }
+                } catch {}
+              }
+            }
           }
         } else {
-          const globalRaw = figma.root.getPluginData(DELTALOG_GLOBAL_KEY);
-          const globalList: GlobalVersionEntry[] = globalRaw ? JSON.parse(globalRaw) : [];
-          
-          for (const entry of globalList) {
+          // Document-level export: package all tracked frames in this file
+          exportFrameName = figma.root.name || "DeltaLog-Backup";
+          const tracked = await getTrackedFramesList();
+
+          for (const tf of tracked) {
             try {
-              const frame = await figma.getNodeByIdAsync(entry.frameId);
-              if (frame) {
-                const rawData = frame.getPluginData(`deltalog_ver_${entry.version}`);
-                versionsData.push({
-                  frameId: entry.frameId,
-                  frameName: frame.name,
-                  version: entry.version,
-                  snapshot: rawData ? JSON.parse(rawData) : null
+              const frame = (await figma.getNodeByIdAsync(tf.id)) as (FrameNode | ComponentNode | SectionNode) | null;
+              if (!frame || frame.removed) continue;
+
+              const versions = getFrameVersions(frame);
+              if (versions.length === 0) continue;
+
+              const frameVersionsData: any[] = [];
+              const snapshots: Record<string, any> = {};
+
+              for (const v of versions) {
+                const rawData = frame.getPluginData(`deltalog_ver_${v.version}`);
+                const snapshot = rawData ? JSON.parse(rawData) : null;
+                if (snapshot) {
+                  snapshots[v.version] = snapshot;
+                }
+                frameVersionsData.push({
+                  metadata: v,
+                  snapshot
                 });
 
-                if (entry.cloneNodeId) {
-                  const clone = (await figma.getNodeByIdAsync(entry.cloneNodeId)) as SceneNode | null;
-                  if (clone && 'exportAsync' in clone) {
-                    const pngBytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
-                    pngPreviews[`${frame.name}-${entry.version}`] = uint8ArrayToBase64(pngBytes);
+                if (v.cloneNodeId) {
+                  try {
+                    const clone = (await figma.getNodeByIdAsync(v.cloneNodeId)) as SceneNode | null;
+                    if (clone && 'exportAsync' in clone) {
+                      const pngBytes = await clone.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                      pngPreviews[`${frame.name}-${v.version}`] = uint8ArrayToBase64(pngBytes);
 
-                    const svgBytes = await clone.exportAsync({ format: 'SVG', svgIdAttribute: true });
-                    svgVectors[`${frame.name}-${entry.version}`] = uint8ArrayToBase64(svgBytes);
-                  }
+                      const svgBytes = await clone.exportAsync({ format: 'SVG', svgIdAttribute: true });
+                      svgVectors[`${frame.name}-${v.version}`] = uint8ArrayToBase64(svgBytes);
+                    }
+                  } catch {}
                 }
               }
+
+              // Fallback: Ensure the latest version always has an SVG vector exported from current frame
+              const latestVer = versions[versions.length - 1].version;
+              const latestKey = `${frame.name}-${latestVer}`;
+              if (!svgVectors[latestKey] && 'exportAsync' in frame) {
+                try {
+                  const svgBytes = await frame.exportAsync({ format: 'SVG', svgIdAttribute: true });
+                  svgVectors[latestKey] = uint8ArrayToBase64(svgBytes);
+                  if (!pngPreviews[latestKey]) {
+                    const pngBytes = await frame.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+                    pngPreviews[latestKey] = uint8ArrayToBase64(pngBytes);
+                  }
+                } catch {}
+              }
+
+              versionsData.push({
+                frameId: frame.id,
+                frameName: frame.name,
+                versions: frameVersionsData,
+                snapshots
+              });
             } catch {}
           }
         }
@@ -1229,6 +1288,180 @@ figma.ui.onmessage = async (msg: { type: string; [key: string]: any }) => {
       } catch (err: any) {
         console.error("DeltaLog export zip error:", err);
         figma.notify("Failed to export history package.");
+      }
+      break;
+    }
+
+    case "IMPORT_BACKUP": {
+      const data = msg.payload || msg;
+      try {
+        const incomingFrames: ImportedFrameItem[] = (data.frames && Array.isArray(data.frames) && data.frames.length > 0)
+          ? data.frames
+          : (data.latestSvg && data.versions && Array.isArray(data.versions))
+            ? [{
+                frameName: data.frameName || "Imported Frame",
+                versions: data.versions,
+                snapshots: data.snapshots || {},
+                latestVersion: data.latestVersion || (data.versions[data.versions.length - 1]?.version),
+                latestSvg: data.latestSvg,
+                milestoneSvgs: data.milestoneSvgs || {}
+              }]
+            : [];
+
+        if (incomingFrames.length === 0) {
+          figma.notify("Cannot import: missing or invalid backup payload.", { error: true });
+          break;
+        }
+
+        // Validate each incoming frame has latestSvg and valid versions array
+        let totalIncomingVersions = 0;
+        for (const fItem of incomingFrames) {
+          if (!fItem.latestSvg || !fItem.versions || !Array.isArray(fItem.versions) || fItem.versions.length === 0) {
+            figma.notify(`Cannot import: missing vector graphic or version history for screen "${fItem.frameName || 'Screen'}".`, { error: true });
+            return;
+          }
+          totalIncomingVersions += fItem.versions.length;
+        }
+
+        // Global 10 Limit Defense-in-depth Check (clean up any removed frames first)
+        const globalRaw = figma.root.getPluginData(DELTALOG_GLOBAL_KEY);
+        const rawGlobalList: GlobalVersionEntry[] = globalRaw ? JSON.parse(globalRaw) : [];
+        const globalList: GlobalVersionEntry[] = [];
+        for (const entry of rawGlobalList) {
+          try {
+            const node = await figma.getNodeByIdAsync(entry.frameId);
+            if (node && !node.removed) {
+              globalList.push(entry);
+            }
+          } catch {}
+        }
+
+        if (globalList.length + totalIncomingVersions > GLOBAL_VERSION_LIMIT) {
+          figma.notify(
+            `Import rejected: Adding ${totalIncomingVersions} versions would exceed the 10-version file limit (currently ${globalList.length}/10).`,
+            { error: true }
+          );
+          break;
+        }
+
+        figma.notify(
+          incomingFrames.length === 1
+            ? "Importing screen & rebuilding history..."
+            : `Importing ${incomingFrames.length} screens & rebuilding history...`
+        );
+
+        // Prepare hidden snapshots page if milestone copies exist
+        const hasMilestones = incomingFrames.some(f => f.milestoneSvgs && Object.keys(f.milestoneSvgs).length > 0);
+        let snapshotsPage: PageNode | undefined = figma.root.children.find(p => p.name === SNAPSHOTS_PAGE_NAME);
+        if (!snapshotsPage && hasMilestones) {
+          snapshotsPage = figma.createPage();
+          snapshotsPage.name = SNAPSHOTS_PAGE_NAME;
+        }
+        if (snapshotsPage) {
+          await snapshotsPage.loadAsync();
+        }
+
+        let snapshotXOffset = 0;
+        if (snapshotsPage) {
+          for (const child of snapshotsPage.children) {
+            snapshotXOffset = Math.max(snapshotXOffset, child.x + child.width + 100);
+          }
+        }
+
+        const createdNodes: FrameNode[] = [];
+
+        // 1. Create all frames from SVG
+        for (const frameItem of incomingFrames) {
+          const importedNode = figma.createNodeFromSvg(frameItem.latestSvg);
+          if (!importedNode) {
+            figma.notify(`Failed to parse vector graphic for "${frameItem.frameName}".`, { error: true });
+            continue;
+          }
+
+          const cleanName = frameItem.frameName ? `${frameItem.frameName} (Imported)` : "Imported Frame";
+          importedNode.name = cleanName;
+
+          // Rebuild milestone snapshots on snapshotsPage if available
+          const updatedVersions: VersionIndexItem[] = JSON.parse(JSON.stringify(frameItem.versions));
+          if (snapshotsPage && frameItem.milestoneSvgs && Object.keys(frameItem.milestoneSvgs).length > 0) {
+            for (let i = 0; i < updatedVersions.length; i++) {
+              const v = updatedVersions[i];
+              const svgContent = frameItem.milestoneSvgs[v.version];
+              if (svgContent && v.version !== frameItem.latestVersion) {
+                try {
+                  const snapshotClone = figma.createNodeFromSvg(svgContent);
+                  snapshotClone.name = `${frameItem.frameName || 'Frame'} - ${v.version} (Snapshot)`;
+                  snapshotsPage.appendChild(snapshotClone);
+                  snapshotClone.x = snapshotXOffset;
+                  snapshotClone.y = 0;
+                  snapshotClone.locked = true;
+                  snapshotXOffset += snapshotClone.width + 100;
+                  updatedVersions[i].cloneNodeId = snapshotClone.id;
+                } catch (cloneErr) {
+                  console.warn("DeltaLog: Failed to rebuild milestone snapshot clone:", v.version, cloneErr);
+                }
+              }
+            }
+          }
+
+          // Attach pluginData directly to the new frame
+          importedNode.setPluginData(DELTALOG_INDEX_KEY, JSON.stringify(updatedVersions));
+          if (frameItem.snapshots) {
+            for (const [ver, snapData] of Object.entries(frameItem.snapshots)) {
+              if (snapData) {
+                importedNode.setPluginData(`deltalog_ver_${ver}`, JSON.stringify(snapData));
+              }
+            }
+          }
+
+          // Register in globalList
+          for (const v of updatedVersions) {
+            globalList.push({
+              frameId: importedNode.id,
+              version: v.version,
+              createdAt: v.createdAt || new Date().toISOString(),
+              cloneNodeId: v.cloneNodeId
+            });
+          }
+
+          createdNodes.push(importedNode);
+        }
+
+        if (createdNodes.length === 0) {
+          figma.notify("Failed to import any frames.", { error: true });
+          break;
+        }
+
+        // 2. Position frames side-by-side on canvas centered around viewport
+        const GAP = 80;
+        const totalWidth = createdNodes.reduce((acc, n) => acc + n.width, 0) + (createdNodes.length - 1) * GAP;
+        let startX = Math.round(figma.viewport.center.x - totalWidth / 2);
+        const centerY = Math.round(figma.viewport.center.y);
+
+        for (const node of createdNodes) {
+          node.x = startX;
+          node.y = Math.round(centerY - node.height / 2);
+          startX += Math.round(node.width + GAP);
+        }
+
+        // 3. Save updated root global list
+        figma.root.setPluginData(DELTALOG_GLOBAL_KEY, JSON.stringify(globalList));
+
+        // 4. Zoom canvas to show all imported frames, and select first one so UI is ready
+        figma.viewport.scrollAndZoomIntoView(createdNodes);
+        figma.currentPage.selection = [createdNodes[0]];
+
+        if (createdNodes.length === 1) {
+          figma.notify(`Successfully imported ${createdNodes[0].name} with ${incomingFrames[0].versions.length} versions!`);
+        } else {
+          figma.notify(`Successfully imported ${createdNodes.length} screens with ${totalIncomingVersions} total versions!`);
+        }
+
+        // Trigger selection update so UI renders the imported frame immediately
+        await updateSelection();
+      } catch (err: any) {
+        console.error("DeltaLog: Import backup error:", err);
+        figma.notify("Failed to import backup package: " + (err.message || "Unknown error"), { error: true });
       }
       break;
     }

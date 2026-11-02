@@ -2,23 +2,30 @@ import React from 'react';
 import { Copy, Ban } from 'lucide-react';
 import { SelectionData } from '../../types';
 import { EmptyCard } from './components/EmptyCard';
+import { ImportBackupCard } from './components/ImportBackupCard';
 import { FrameCard } from './components/FrameCard';
 import { ChildSelectedCard } from './components/ChildSelectedCard';
 import { HowItWorks } from './components/HowItWorks';
 
 interface StartScreenProps {
   selection: SelectionData;
+  totalVersions: number;
   onSelectParent: (parentId: string) => void;
   onSaveVersion: () => void;
   onCheckHistory: () => void;
+  onImportFile: (file: File) => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({
   selection,
+  totalVersions,
   onSelectParent,
   onSaveVersion,
-  onCheckHistory
+  onCheckHistory,
+  onImportFile
 }) => {
+  const availableSlots = Math.max(0, 10 - totalVersions);
+
   return (
     <div className="main-content">
       {selection.status === 'LOADED' && (
@@ -58,7 +65,10 @@ export const StartScreen: React.FC<StartScreenProps> = ({
       )}
 
       {selection.status === 'EMPTY' && (
-        <EmptyCard />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <EmptyCard />
+          <ImportBackupCard availableSlots={availableSlots} onFileSelected={onImportFile} />
+        </div>
       )}
 
       <HowItWorks />

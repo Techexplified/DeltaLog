@@ -15,9 +15,9 @@ export const EmptyCard: React.FC = () => {
           <div className="screen-line" />
         </div>
       </div>
-      <div className="empty-title">No frame selected</div>
+      <div className="empty-title">Track Canvas Frame</div>
       <div className="empty-subtitle">
-        Click a frame on the canvas.
+        Click any screen frame on the canvas to start tracking versions.
       </div>
     </div>
   );

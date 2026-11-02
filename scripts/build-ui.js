@@ -45,16 +45,15 @@ async function bundleUI() {
       }
     }
 
-    // 3. Assemble final ui.html
+    // 3. Assemble final ui.html safely without string replacement interpolation
     const template = fs.readFileSync(path.join(SRC_UI_DIR, 'index.html'), 'utf-8');
-    let output = template.replace(
-      '<!-- INJECT_STYLES -->',
-      `<style>\n${combinedCss}\n  </style>`
-    );
-    output = output.replace(
-      '<!-- INJECT_SCRIPTS -->',
-      `<script>\n${jsBundle}\n  </script>`
-    );
+    
+    // Safely prevent </script> inside JS bundle from terminating inline script tag
+    const safeJsBundle = jsBundle.replace(/<\/script>/gi, '<\\/script>');
+    
+    // Use split/join to prevent $', $&, $1, etc. from being parsed as replacement templates
+    let output = template.split('<!-- INJECT_STYLES -->').join(`<style>\n${combinedCss}\n  </style>`);
+    output = output.split('<!-- INJECT_SCRIPTS -->').join(`<script>\n${safeJsBundle}\n  </script>`);
 
     fs.writeFileSync(OUTPUT_FILE, output, 'utf-8');
     console.log(`[DeltaLog] UI compiled successfully to ui.html (${new Date().toLocaleTimeString()})`);

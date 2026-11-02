@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import { SelectionData } from '../../types';
 import { TrackedFrameSelector } from '../compare/components/TrackedFrameSelector';
 import { CompareEmptyState } from '../compare/components/CompareEmptyState';
 import { HistoryVersionCard } from './components/HistoryVersionCard';
+import { DeleteVersionModal } from './components/DeleteVersionModal';
 
 interface HistoryScreenProps {
   selection: SelectionData;
@@ -26,6 +27,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
   onDeleteVersion,
   onExportFrameZip
 }) => {
+  const [versionToDelete, setVersionToDelete] = useState<string | null>(null);
   const trackedFrames = selection.trackedFrames || [];
   const versions = selection.versions || [];
   const hasSavedVersion = selection.status === 'LOADED' && selection.hasSavedVersion && versions.length > 0;
@@ -65,6 +67,17 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
     }
   };
 
+  const handleConfirmDelete = () => {
+    if (selection.id && versionToDelete) {
+      onDeleteVersion(selection.id, versionToDelete);
+    }
+    setVersionToDelete(null);
+  };
+
+  const handleCancelDelete = () => {
+    setVersionToDelete(null);
+  };
+
   return (
     <div className="main-content" style={{ gap: '12px', flex: 1, overflowY: 'auto' }}>
       {/* Top Frame Picker Dropdown */}
@@ -89,7 +102,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
             isOldest={verItem.version === oldestVersion}
             onCompare={handleCompareClick}
             onRestore={(ver) => selection.id && onRestoreVersion(selection.id, ver)}
-            onDelete={(ver) => selection.id && onDeleteVersion(selection.id, ver)}
+            onDelete={(ver) => setVersionToDelete(ver)}
           />
         ))}
       </div>
@@ -103,6 +116,14 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
         <Download size={14} strokeWidth={2.2} />
         <span>Export frame history (.zip)</span>
       </button>
+
+      {/* Delete Confirmation Popup Notice */}
+      <DeleteVersionModal
+        isOpen={Boolean(versionToDelete)}
+        version={versionToDelete}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };

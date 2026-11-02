@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { TabId, ScreenView, SaveVersionPayload, DiffItem } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { TabId, ScreenView, SaveVersionPayload, DiffItem, ParsedImportData } from './types';
 import { useFigmaBridge } from './hooks/useFigmaBridge';
+import { parseAndValidateZip } from './utils/zipImporter';
 import { Header } from './components/Header';
 import { Tabs } from './components/Tabs';
 import { Footer } from './components/Footer';
+import { ImportConfirmModal } from './components/ImportConfirmModal';
 import { StartScreen } from './screens/start/StartScreen';
 import { SaveVersionScreen } from './screens/save-version/SaveVersionScreen';
 import { SuccessView } from './screens/save-version/SuccessView';
@@ -26,6 +28,13 @@ export const App: React.FC = () => {
       return 'dark';
     }
   });
+
+  // Import Backup State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImportValidating, setIsImportValidating] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [parsedImportData, setParsedImportData] = useState<ParsedImportData | null>(null);
+  const settingsFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleToggleTheme = () => {
     setTheme(prev => {
@@ -151,6 +160,49 @@ export const App: React.FC = () => {
     }
   };
 
+  const trackedFrames = selection.trackedFrames || [];
+  const totalVersionsInFile = trackedFrames.reduce((acc, f) => acc + (f.versionsCount || 0), 0);
+
+  const handleSelectImportFile = async (file: File) => {
+    setIsImportModalOpen(true);
+    setIsImportValidating(true);
+    setImportError(null);
+    setParsedImportData(null);
+
+    try {
+      const result = await parseAndValidateZip(file, totalVersionsInFile);
+      setIsImportValidating(false);
+      if (result.ok && result.data) {
+        setParsedImportData(result.data);
+      } else {
+        setImportError(result.error || 'Failed to validate backup archive.');
+      }
+    } catch (err: any) {
+      setIsImportValidating(false);
+      setImportError(err.message || 'Error reading archive.');
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (!parsedImportData) return;
+    const backupData = {
+      scope: parsedImportData.scope,
+      frames: parsedImportData.frames,
+      frameName: parsedImportData.frameName,
+      versions: parsedImportData.versions,
+      snapshots: parsedImportData.snapshots,
+      latestSvg: parsedImportData.latestSvg,
+      latestVersion: parsedImportData.latestVersion,
+      milestoneSvgs: parsedImportData.milestoneSvgs
+    };
+    sendMessage('IMPORT_BACKUP', {
+      payload: backupData,
+      ...backupData
+    });
+    setIsImportModalOpen(false);
+    setCurrentView('home');
+  };
+
   return (
     <div className={`app-container ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} data-theme={theme}>
       {/* Hide global header/tabs when in dedicated save modal flow or compare results */}
@@ -236,9 +288,11 @@ export const App: React.FC = () => {
       {currentView === 'home' && activeTab === 'home' && (
         <StartScreen
           selection={selection}
+          totalVersions={totalVersionsInFile}
           onSelectParent={handleSelectParent}
           onSaveVersion={handleOpenSaveScreen}
           onCheckHistory={handleCheckHistory}
+          onImportFile={handleSelectImportFile}
         />
       )}
 
@@ -308,6 +362,12 @@ export const App: React.FC = () => {
           onRequestExportZip={() => {
             sendMessage('REQUEST_EXPORT_DATA', {});
           }}
+          onTriggerImport={() => {
+            if (settingsFileInputRef.current) {
+              settingsFileInputRef.current.value = '';
+              settingsFileInputRef.current.click();
+            }
+          }}
         />
       )}
 
@@ -322,6 +382,35 @@ export const App: React.FC = () => {
           }
         />
       )}
+
+      {/* Hidden file input for settings screen import trigger */}
+      <input
+        type="file"
+        ref={settingsFileInputRef}
+        accept=".zip,application/zip,application/x-zip-compressed"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handleSelectImportFile(file);
+          }
+        }}
+      />
+
+      {/* Global Pre-Import Confirmation & Validation Modal */}
+      <ImportConfirmModal
+        isOpen={isImportModalOpen}
+        isValidating={isImportValidating}
+        error={importError}
+        parsedData={parsedImportData}
+        currentVersionsCount={totalVersionsInFile}
+        onConfirm={handleConfirmImport}
+        onCancel={() => {
+          setIsImportModalOpen(false);
+          setImportError(null);
+          setParsedImportData(null);
+        }}
+      />
     </div>
   );
 };

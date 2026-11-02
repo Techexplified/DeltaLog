@@ -844,3 +844,99 @@ body.theme-light .app-container {
 [data-theme="light"] .storage-subtext {
   color: #64748b !important;
 }
+
+
+/* ==========================================================================
+   Import Backup Feature in Light Mode
+   ========================================================================== */
+
+[data-theme="light"] .import-backup-card {
+  background: #ffffff !important;
+  border: 1.5px dashed #93c5fd !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .import-backup-card:hover {
+  background: #f8fafc !important;
+  border-color: #2563eb !important;
+}
+
+[data-theme="light"] .import-icon-circle {
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #2563eb !important;
+}
+
+[data-theme="light"] .import-action-pill {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .import-modal-backdrop {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+[data-theme="light"] .import-modal-content {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .import-modal-header {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .import-modal-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .import-preview-frame-card {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .import-preview-thumb {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .import-preview-name {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .import-badge-pill {
+  background: #dbeafe !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+[data-theme="light"] .import-quota-card {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .import-quota-bar-bg {
+  background: #e2e8f0 !important;
+}
+
+[data-theme="light"] .import-quota-bar-fill {
+  background: #2563eb !important;
+}
+
+[data-theme="light"] .import-verified-banner {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  color: #15803d !important;
+}
+
+[data-theme="light"] .delete-modal-icon-circle {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+[data-theme="light"] .delete-modal-notice-desc {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  color: #dc2626 !important;
+}

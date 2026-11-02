@@ -22,13 +22,16 @@ export async function generateAndDownloadZip(payload: ExportZipPayload): Promise
   const zip = new JSZip();
 
   // 1. Add JSON metadata & snapshot deltas
-  const metadata = {
+  const metadata: any = {
     app: 'DeltaLog',
     exportedAt: new Date().toISOString(),
     scope: payload.isGlobal ? 'document-file' : 'frame',
     frameName: payload.frameName,
     versions: payload.versionsData
   };
+  if (payload.isGlobal) {
+    metadata.frames = payload.versionsData;
+  }
   zip.file('history.json', JSON.stringify(metadata, null, 2));
 
   // 2. Add png-preview folder with PNGs
@@ -38,7 +41,8 @@ export async function generateAndDownloadZip(payload: ExportZipPayload): Promise
       if (base64Data) {
         try {
           const rawBytes = base64ToUint8Array(base64Data);
-          pngFolder.file(`${key}.png`, rawBytes);
+          const safeKey = key.replace(/[/\\?%*:|"<>]/g, '_');
+          pngFolder.file(`${safeKey}.png`, rawBytes);
         } catch (err) {
           console.warn('Failed to add PNG preview:', key, err);
         }
@@ -53,7 +57,8 @@ export async function generateAndDownloadZip(payload: ExportZipPayload): Promise
       if (base64Data) {
         try {
           const rawBytes = base64ToUint8Array(base64Data);
-          svgFolder.file(`${key}.svg`, rawBytes);
+          const safeKey = key.replace(/[/\\?%*:|"<>]/g, '_');
+          svgFolder.file(`${safeKey}.svg`, rawBytes);
         } catch (err) {
           console.warn('Failed to add SVG vector:', key, err);
         }

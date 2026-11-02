@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, HardDrive, Download, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, HardDrive, Download, UploadCloud, Trash2, AlertTriangle } from 'lucide-react';
 import { SelectionData } from '../../types';
 
 interface SettingsScreenProps {
@@ -8,6 +8,7 @@ interface SettingsScreenProps {
   onNotify: (message: string) => void;
   onClearAllHistory: () => void;
   onRequestExportZip: () => void;
+  onTriggerImport: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -15,7 +16,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onBack,
   onNotify,
   onClearAllHistory,
-  onRequestExportZip
+  onRequestExportZip,
+  onTriggerImport
 }) => {
   const [keepSnapshots, setKeepSnapshots] = useState(true);
   const [autoPrune, setAutoPrune] = useState(true);
@@ -147,23 +149,34 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         </div>
 
-        {/* SUBSECTION 3: EXPORT */}
+        {/* SUBSECTION 3: BACKUP & ARCHIVE */}
         <div className="settings-section">
-          <div className="settings-section-heading">Export</div>
+          <div className="settings-section-heading">Backup &amp; Restore</div>
 
           <div className="settings-card" style={{ gap: '10px' }}>
             <span className="settings-checkbox-desc">
-              Export complete file backup archive (.zip) containing metadata JSON and PNG visual snapshots for all tracked frames.
+              Export or import DeltaLog backup archives (.zip) with complete metadata, vector wireframes, and version timelines.
             </span>
 
-            <button
-              type="button"
-              className="settings-action-btn primary"
-              onClick={onRequestExportZip}
-            >
-              <Download size={14} strokeWidth={2} />
-              <span>Export file backup (.zip)</span>
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                className="settings-action-btn primary"
+                onClick={onRequestExportZip}
+              >
+                <Download size={14} strokeWidth={2} />
+                <span>Export file backup (.zip)</span>
+              </button>
+
+              <button
+                type="button"
+                className="settings-action-btn"
+                onClick={onTriggerImport}
+              >
+                <UploadCloud size={14} strokeWidth={2} />
+                <span>Import backup (.zip)</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

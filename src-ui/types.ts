@@ -129,6 +129,39 @@ export interface CompareRequestPayload {
   filters: CompareFilterOptions;
 }
 
+export interface ImportBackupPayload {
+  frameName: string;
+  versions: VersionIndexItem[];
+  latestSvg: string;
+  latestVersion: string;
+  milestoneSvgs: Record<string, string>;
+  snapshots: Record<string, any>;
+}
+
+export interface ImportedFrameItem {
+  frameName: string;
+  versions: VersionIndexItem[];
+  snapshots: Record<string, any>;
+  latestVersion: string;
+  latestSvg: string;
+  milestoneSvgs: Record<string, string>;
+  latestPngBase64?: string | null;
+}
+
+export interface ParsedImportData {
+  scope: 'frame' | 'document-file';
+  frames: ImportedFrameItem[];
+  totalIncomingVersions: number;
+  frameName: string;
+  versions: VersionIndexItem[];
+  snapshots: Record<string, any>;
+  latestVersion: string;
+  latestSvg: string;
+  milestoneSvgs: Record<string, string>;
+  latestPngBase64?: string | null;
+  incomingCount: number;
+}
+
 export type PluginMessage = 
   | { type: 'selection-update'; [key: string]: any }
   | { type: 'thumbnail-update'; id: string; thumbnail: string | null }
